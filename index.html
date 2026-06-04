@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Farm Legacy</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-mark" aria-hidden="true">FL</div>
+          <div class="brand-copy">
+            <strong>Farm Legacy</strong>
+            <span>Cabal Online</span>
+          </div>
+        </div>
+
+        <nav class="main-nav" aria-label="Navegação principal">
+          <button class="nav-button active" data-view="dungeon">DG</button>
+          <button class="nav-button" data-view="ranking">Ranking</button>
+          <button class="nav-button" data-view="settings">Configuração</button>
+        </nav>
+
+        <div class="dungeon-picker">
+          <label for="dungeon-search">Dungeons</label>
+          <input id="dungeon-search" type="search" autocomplete="off" placeholder="Buscar DG" />
+          <div id="dungeon-buttons" class="dungeon-buttons" aria-live="polite"></div>
+        </div>
+      </aside>
+
+      <main class="workspace">
+        <section id="dungeon-view" class="view active-view">
+          <header class="page-head">
+            <div class="title-block">
+              <span>Dungeon selecionada</span>
+              <h1 id="dungeon-title">Farm Legacy</h1>
+            </div>
+
+            <div class="run-bar" aria-label="Controle de runs">
+              <label>
+                Runs base
+                <input id="runs-input" type="number" min="1" max="120" value="30" />
+              </label>
+              <label class="toggle-control">
+                <input id="reset-toggle" type="checkbox" />
+                <span>Reset</span>
+              </label>
+              <label class="toggle-control">
+                <input id="sell-pc-toggle" type="checkbox" checked />
+                <span>Vender PC</span>
+              </label>
+              <div class="total-runs">
+                <span>Total</span>
+                <strong id="total-runs">30</strong>
+              </div>
+            </div>
+          </header>
+
+          <section class="metric-grid" aria-label="Resumo financeiro">
+            <article>
+              <span>Custo entrada</span>
+              <strong id="metric-entry-cost">0 Alz</strong>
+            </article>
+            <article>
+              <span>Farm básico</span>
+              <strong id="metric-basic">0 Alz</strong>
+            </article>
+            <article>
+              <span>Drops extras</span>
+              <strong id="metric-extra">0 Alz</strong>
+            </article>
+            <article>
+              <span>PC separado</span>
+              <strong id="metric-pc">0 Alz</strong>
+            </article>
+            <article class="metric-profit">
+              <span>Lucro líquido</span>
+              <strong id="metric-profit">0 Alz</strong>
+            </article>
+          </section>
+
+          <section class="dungeon-layout">
+            <div class="main-column">
+              <section class="panel">
+                <div class="panel-head">
+                  <div>
+                    <span>Entrada</span>
+                    <h2>Custo por DG</h2>
+                  </div>
+                </div>
+                <div id="entry-list" class="data-table"></div>
+              </section>
+
+              <section class="panel">
+                <div class="panel-head">
+                  <div>
+                    <span>Retorno principal</span>
+                    <h2>Farm Básico + Jóias</h2>
+                  </div>
+                </div>
+                <div id="basic-farm-list" class="data-table"></div>
+              </section>
+
+              <section class="panel pc-panel">
+                <div class="panel-head">
+                  <div>
+                    <span>Pontos de Calabouço</span>
+                    <h2>PC separado</h2>
+                  </div>
+                  <strong id="pc-status" class="status-chip">Ativo</strong>
+                </div>
+                <div class="pc-grid">
+                  <label>
+                    PC por DG
+                    <input id="pc-per-run" type="number" min="0" step="1" />
+                  </label>
+                  <div>
+                    <span>Valor líquido de 1 PC</span>
+                    <strong id="pc-unit-value">0 Alz</strong>
+                  </div>
+                  <div>
+                    <span>PC total</span>
+                    <strong id="pc-total-count">0</strong>
+                  </div>
+                  <div>
+                    <span>Retorno PC</span>
+                    <strong id="pc-total-value">0 Alz</strong>
+                  </div>
+                </div>
+              </section>
+            </div>
+
+            <aside class="side-column">
+              <section class="panel">
+                <div class="panel-head">
+                  <div>
+                    <span>Lista de drops</span>
+                    <h2>Restante do Farm</h2>
+                  </div>
+                </div>
+                <div id="extra-drop-list" class="drop-list"></div>
+              </section>
+
+              <section class="panel">
+                <div class="panel-head">
+                  <div>
+                    <span>Farm lançado</span>
+                    <h2>Drops Contabilizados</h2>
+                  </div>
+                </div>
+                <form id="custom-drop-form" class="quick-add">
+                  <input id="custom-drop-name" type="text" autocomplete="off" placeholder="Item" />
+                  <input id="custom-drop-category" type="text" autocomplete="off" placeholder="Categoria" />
+                  <button type="submit" title="Adicionar item" aria-label="Adicionar item">+</button>
+                </form>
+                <div id="counted-drop-list" class="counted-list"></div>
+              </section>
+            </aside>
+          </section>
+        </section>
+
+        <section id="ranking-view" class="view">
+          <header class="page-head">
+            <div class="title-block">
+              <span>Comparativo</span>
+              <h1>Ranking de DGs</h1>
+            </div>
+            <div class="segmented" role="group" aria-label="Tipo de ranking">
+              <button class="rank-mode active" data-rank="profit">Lucro</button>
+              <button class="rank-mode" data-rank="hour">Por tempo</button>
+              <button class="rank-mode" data-rank="rush">Rush</button>
+            </div>
+          </header>
+          <section class="panel">
+            <div id="ranking-table" class="ranking-table"></div>
+          </section>
+        </section>
+
+        <section id="settings-view" class="view">
+          <header class="page-head">
+            <div class="title-block">
+              <span>Base do sistema</span>
+              <h1>Configuração Geral</h1>
+            </div>
+            <button id="reset-local-data" class="ghost-button" type="button">Restaurar padrão</button>
+          </header>
+
+          <section class="settings-layout">
+            <section class="panel">
+              <div class="panel-head">
+                <div>
+                  <span>Preços globais</span>
+                  <h2>Núcleos e itens base</h2>
+                </div>
+              </div>
+              <div id="price-settings" class="settings-list"></div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-head">
+                <div>
+                  <span>Derivados</span>
+                  <h2>Cash e Protetor PC</h2>
+                </div>
+              </div>
+              <div class="formula-stack">
+                <div class="formula-row">
+                  <span>Valor de 1 Cash/Gema</span>
+                  <strong id="gem-unit-value">0 Alz</strong>
+                </div>
+                <div class="formula-row">
+                  <span>Custo do Protetor PC</span>
+                  <strong id="protector-cost">0 Alz</strong>
+                </div>
+                <div class="formula-row">
+                  <span>Lucro líquido em 100 PC</span>
+                  <strong id="pc-profit-100">0 Alz</strong>
+                </div>
+                <div class="formula-row highlight">
+                  <span>Valor líquido de 1 PC</span>
+                  <strong id="pc-profit-1">0 Alz</strong>
+                </div>
+              </div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-head">
+                <div>
+                  <span>Dungeon atual</span>
+                  <h2>Ajustes da DG selecionada</h2>
+                </div>
+              </div>
+              <div id="dungeon-settings" class="settings-list"></div>
+            </section>
+          </section>
+        </section>
+      </main>
+    </div>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
