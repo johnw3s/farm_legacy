@@ -20,6 +20,7 @@
         <nav class="main-nav" aria-label="Navegação principal">
           <button class="nav-button active" data-view="dungeon">DG</button>
           <button class="nav-button" data-view="ranking">Ranking</button>
+          <button class="nav-button" data-view="dg-settings">Configuração DGs</button>
           <button class="nav-button" data-view="settings">Configuração</button>
         </nav>
 
@@ -64,12 +65,12 @@
               <strong id="metric-entry-cost">0 Alz</strong>
             </article>
             <article>
-              <span>Farm básico</span>
+              <span>Farm</span>
               <strong id="metric-basic">0 Alz</strong>
             </article>
             <article>
-              <span>Drops extras</span>
-              <strong id="metric-extra">0 Alz</strong>
+              <span>Cashback</span>
+              <strong id="metric-cashback">0 Alz</strong>
             </article>
             <article>
               <span>PC separado</span>
@@ -83,52 +84,86 @@
 
           <section class="dungeon-layout">
             <div class="main-column">
-              <section class="panel">
+              <section class="panel dg-info-panel">
                 <div class="panel-head">
                   <div>
-                    <span>Entrada</span>
-                    <h2>Custo por DG</h2>
+                    <span>Dados fixos da DG</span>
+                    <h2>Entrada, PC e Cashback</h2>
                   </div>
+                  <button id="open-dg-settings" class="gear-button" type="button" title="Configurar DG" aria-label="Configurar DG">
+                    <svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"></path>
+                      <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 9 19.37a1.7 1.7 0 0 0-1.88.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.56-1.03H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.88l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1.03-1.56V3a2 2 0 1 1 4 0v.09A1.7 1.7 0 0 0 15 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9c.12.46.51.8.97.97H21a2 2 0 1 1 0 4h-.09A1.7 1.7 0 0 0 19.4 15Z"></path>
+                    </svg>
+                  </button>
                 </div>
-                <div id="entry-list" class="data-table"></div>
+
+                <div class="dg-info-grid">
+                  <section class="info-box">
+                    <div class="info-box-head">
+                      <div>
+                        <span>Entrada</span>
+                        <h3>Custo por DG</h3>
+                      </div>
+                      <label class="entry-mode-control">
+                        <select id="entry-mode-select" aria-label="Tipo de entrada">
+                          <option value="gems">Gemas Arcanas</option>
+                          <option value="craft">Craft (Chloe)</option>
+                          <option value="npc">NPC (Yul)</option>
+                        </select>
+                      </label>
+                    </div>
+                    <div id="entry-list" class="data-table"></div>
+                  </section>
+
+                  <section class="info-box">
+                    <div class="info-box-head">
+                      <div>
+                        <span>Pontos de Calabouço</span>
+                        <h3>PC</h3>
+                      </div>
+                      <strong id="pc-status" class="status-chip">Ativo</strong>
+                    </div>
+                    <div class="pc-grid">
+                      <div>
+                        <span>PC por DG</span>
+                        <strong id="pc-per-run-display">0</strong>
+                      </div>
+                      <div>
+                        <span>Valor líquido de 1 PC</span>
+                        <strong id="pc-unit-value">0 Alz</strong>
+                      </div>
+                      <div>
+                        <span>PC total</span>
+                        <strong id="pc-total-count">0</strong>
+                      </div>
+                      <div>
+                        <span>Retorno PC</span>
+                        <strong id="pc-total-value">0 Alz</strong>
+                      </div>
+                    </div>
+                  </section>
+
+                  <section class="info-box">
+                    <div class="info-box-head">
+                      <div>
+                        <span>Recompensas por DG</span>
+                        <h3>Cashback</h3>
+                      </div>
+                    </div>
+                    <div id="cashback-list" class="cashback-list"></div>
+                  </section>
+                </div>
               </section>
 
               <section class="panel">
                 <div class="panel-head">
                   <div>
-                    <span>Retorno principal</span>
-                    <h2>Farm Básico + Jóias</h2>
+                    <span>Retorno</span>
+                    <h2>Farm</h2>
                   </div>
                 </div>
                 <div id="basic-farm-list" class="data-table"></div>
-              </section>
-
-              <section class="panel pc-panel">
-                <div class="panel-head">
-                  <div>
-                    <span>Pontos de Calabouço</span>
-                    <h2>PC separado</h2>
-                  </div>
-                  <strong id="pc-status" class="status-chip">Ativo</strong>
-                </div>
-                <div class="pc-grid">
-                  <label>
-                    PC por DG
-                    <input id="pc-per-run" type="number" min="0" step="1" />
-                  </label>
-                  <div>
-                    <span>Valor líquido de 1 PC</span>
-                    <strong id="pc-unit-value">0 Alz</strong>
-                  </div>
-                  <div>
-                    <span>PC total</span>
-                    <strong id="pc-total-count">0</strong>
-                  </div>
-                  <div>
-                    <span>Retorno PC</span>
-                    <strong id="pc-total-value">0 Alz</strong>
-                  </div>
-                </div>
               </section>
             </div>
 
@@ -136,26 +171,11 @@
               <section class="panel">
                 <div class="panel-head">
                   <div>
-                    <span>Lista de drops</span>
-                    <h2>Restante do Farm</h2>
+                    <span>Drops possíveis</span>
+                    <h2>Lista de Drops</h2>
                   </div>
                 </div>
                 <div id="extra-drop-list" class="drop-list"></div>
-              </section>
-
-              <section class="panel">
-                <div class="panel-head">
-                  <div>
-                    <span>Farm lançado</span>
-                    <h2>Drops Contabilizados</h2>
-                  </div>
-                </div>
-                <form id="custom-drop-form" class="quick-add">
-                  <input id="custom-drop-name" type="text" autocomplete="off" placeholder="Item" />
-                  <input id="custom-drop-category" type="text" autocomplete="off" placeholder="Categoria" />
-                  <button type="submit" title="Adicionar item" aria-label="Adicionar item">+</button>
-                </form>
-                <div id="counted-drop-list" class="counted-list"></div>
               </section>
             </aside>
           </section>
@@ -175,6 +195,60 @@
           </header>
           <section class="panel">
             <div id="ranking-table" class="ranking-table"></div>
+          </section>
+        </section>
+
+        <section id="dg-settings-view" class="view">
+          <header class="page-head">
+            <div class="title-block">
+              <span>Configuração por DG</span>
+              <h1 id="dg-config-title">Configuração DGs</h1>
+            </div>
+            <button id="back-to-farm" class="ghost-button" type="button">Voltar ao Farm</button>
+          </header>
+
+          <section class="dg-config-layout">
+            <section class="panel">
+              <div class="panel-head">
+                <div>
+                  <span>Entrada</span>
+                  <h2>Custo fixo da DG</h2>
+                </div>
+                <label class="entry-mode-control">
+                  <select id="dg-config-entry-mode-select" aria-label="Tipo de entrada para configurar">
+                    <option value="gems">Gemas Arcanas</option>
+                    <option value="craft">Craft (Chloe)</option>
+                    <option value="npc">NPC (Yul)</option>
+                  </select>
+                </label>
+              </div>
+              <div id="dg-config-entry-list" class="data-table"></div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-head">
+                <div>
+                  <span>Pontos de Calabouço</span>
+                  <h2>PC da DG</h2>
+                </div>
+              </div>
+              <div class="settings-list">
+                <div class="dg-setting">
+                  <strong>PC por DG</strong>
+                  <input id="dg-config-pc" data-dungeon-field="pc" type="number" min="0" step="1" />
+                </div>
+              </div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-head">
+                <div>
+                  <span>Recompensas</span>
+                  <h2>Cashback</h2>
+                </div>
+              </div>
+              <div id="dg-config-cashback-list" class="cashback-list"></div>
+            </section>
           </section>
         </section>
 
@@ -229,7 +303,7 @@
               <div class="panel-head">
                 <div>
                   <span>Dungeon atual</span>
-                  <h2>Ajustes da DG selecionada</h2>
+                  <h2>Tempo e reset</h2>
                 </div>
               </div>
               <div id="dungeon-settings" class="settings-list"></div>

@@ -16,6 +16,9 @@
   --purple-soft: rgba(117, 74, 199, 0.2);
   --good: #68dbaf;
   --danger: #ff7b9a;
+  --scroll-track: rgba(16, 11, 24, 0.9);
+  --scroll-thumb: rgba(218, 201, 96, 0.74);
+  --scroll-thumb-hover: #dac960;
   --shadow: 0 22px 70px rgba(0, 0, 0, 0.38);
   --radius-xl: 24px;
   --radius-lg: 18px;
@@ -35,13 +38,15 @@ html {
 body {
   margin: 0;
   min-height: 100vh;
+  overflow: hidden;
   color: var(--text);
   background: #0b0712;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
 button,
-input {
+input,
+select {
   font: inherit;
 }
 
@@ -50,21 +55,29 @@ button {
 }
 
 input,
-button {
+button,
+select {
   border-radius: var(--radius-sm);
 }
 
 .app-shell {
   display: grid;
   grid-template-columns: 292px minmax(0, 1fr);
+  height: 100vh;
   min-height: 100vh;
+  overflow: hidden;
 }
 
 .sidebar {
+  position: sticky;
+  top: 0;
   display: flex;
   flex-direction: column;
   gap: 22px;
+  height: 100vh;
+  min-height: 0;
   padding: 22px 16px;
+  overflow: hidden;
   background: rgba(19, 10, 32, 0.96);
   border-right: 1px solid var(--line);
 }
@@ -168,7 +181,9 @@ button {
 .pc-grid input,
 .data-table input,
 .settings-list input,
-.quick-add input {
+.compact-field input,
+.quick-add input,
+.entry-mode-control select {
   min-height: 38px;
   color: var(--text);
   background: var(--input);
@@ -182,9 +197,24 @@ button {
   padding: 9px 11px;
 }
 
-input:focus {
+input:focus,
+select:focus {
   border-color: var(--accent) !important;
   box-shadow: 0 0 0 3px rgba(218, 201, 96, 0.14);
+}
+
+.data-table input:disabled {
+  color: var(--muted);
+  cursor: not-allowed;
+  background: rgba(42, 27, 62, 0.58);
+  border-color: rgba(218, 201, 96, 0.11);
+  -webkit-text-fill-color: var(--muted);
+  opacity: 1;
+}
+
+.data-table input:disabled:focus {
+  border-color: rgba(218, 201, 96, 0.11) !important;
+  box-shadow: none;
 }
 
 .dungeon-buttons {
@@ -215,9 +245,52 @@ input:focus {
 }
 
 .workspace {
+  height: 100vh;
   min-width: 0;
   padding: 26px;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.workspace,
+.dungeon-buttons,
+.drop-list,
+.counted-list {
+  scrollbar-color: var(--scroll-thumb) var(--scroll-track);
+  scrollbar-width: thin;
+}
+
+.workspace::-webkit-scrollbar,
+.dungeon-buttons::-webkit-scrollbar,
+.drop-list::-webkit-scrollbar,
+.counted-list::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.workspace::-webkit-scrollbar-track,
+.dungeon-buttons::-webkit-scrollbar-track,
+.drop-list::-webkit-scrollbar-track,
+.counted-list::-webkit-scrollbar-track {
+  background: var(--scroll-track);
+  border-radius: 999px;
+}
+
+.workspace::-webkit-scrollbar-thumb,
+.dungeon-buttons::-webkit-scrollbar-thumb,
+.drop-list::-webkit-scrollbar-thumb,
+.counted-list::-webkit-scrollbar-thumb {
+  min-height: 44px;
+  background: linear-gradient(180deg, rgba(218, 201, 96, 0.98), rgba(117, 74, 199, 0.82));
+  border: 2px solid var(--scroll-track);
+  border-radius: 999px;
+}
+
+.workspace::-webkit-scrollbar-thumb:hover,
+.dungeon-buttons::-webkit-scrollbar-thumb:hover,
+.drop-list::-webkit-scrollbar-thumb:hover,
+.counted-list::-webkit-scrollbar-thumb:hover {
+  background: var(--scroll-thumb-hover);
 }
 
 .view {
@@ -257,6 +330,12 @@ h1 {
 
 h2 {
   font-size: 16px;
+}
+
+h3 {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.12;
 }
 
 .run-bar {
@@ -356,6 +435,43 @@ h2 {
   color: var(--accent);
 }
 
+.alz-value {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.alz-value.alz-tier-10k {
+  color: #F9F9F9 !important;
+}
+
+.alz-value.alz-tier-100k {
+  color: #F7E386 !important;
+}
+
+.alz-value.alz-tier-1m {
+  color: #42D5E2 !important;
+}
+
+.alz-value.alz-tier-10m {
+  color: #2CBC00 !important;
+}
+
+.alz-value.alz-tier-100m {
+  color: #B2633C !important;
+}
+
+.alz-value.alz-tier-1b {
+  color: #7C95F3 !important;
+}
+
+.alz-value.alz-tier-10b {
+  color: #5DEF97 !important;
+}
+
+.alz-value.alz-tier-100b {
+  color: #8D074A !important;
+}
+
 .dungeon-layout {
   display: grid;
   grid-template-columns: minmax(0, 1.35fr) minmax(340px, 0.75fr);
@@ -382,6 +498,87 @@ h2 {
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 14px;
+}
+
+.info-box-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.info-box-head span {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.dg-info-panel {
+  border-color: rgba(218, 201, 96, 0.28);
+}
+
+.dg-info-grid,
+.dg-config-layout {
+  display: grid;
+  gap: 14px;
+}
+
+.info-box {
+  min-width: 0;
+  padding: 12px;
+  background: rgba(16, 11, 24, 0.64);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: var(--radius-md);
+}
+
+.gear-button {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+  color: var(--accent);
+  background: rgba(218, 201, 96, 0.08);
+  border: 1px solid var(--line-strong);
+}
+
+.gear-button:hover {
+  background: rgba(218, 201, 96, 0.15);
+}
+
+.entry-mode-control {
+  position: relative;
+  flex: 0 0 auto;
+  width: 178px;
+}
+
+.entry-mode-control select {
+  width: 100%;
+  padding: 8px 34px 8px 12px;
+  appearance: none;
+  color: var(--accent);
+  background:
+    linear-gradient(180deg, rgba(42, 27, 62, 0.94), rgba(16, 11, 24, 0.94)),
+    var(--input);
+  border-color: var(--line-strong);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.entry-mode-control::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: 13px;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid var(--accent);
+  border-bottom: 2px solid var(--accent);
+  pointer-events: none;
+  transform: translateY(-70%) rotate(45deg);
 }
 
 .status-chip {
@@ -416,6 +613,33 @@ h2 {
 
 .table-row {
   grid-template-columns: minmax(190px, 1fr) 100px 124px 126px;
+}
+
+.table-row.farm-row {
+  grid-template-columns: minmax(190px, 1fr) 92px 124px 126px 34px;
+}
+
+.table-row.alz-row {
+  grid-template-columns: minmax(190px, 1fr) minmax(224px, 234px) 126px;
+}
+
+.entry-money-cell {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.entry-money-cell span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.entry-money-cell input {
+  width: 100%;
 }
 
 .table-row.header,
@@ -496,6 +720,76 @@ h2 {
   border-radius: var(--radius-md);
 }
 
+.cashback-list {
+  display: grid;
+  gap: 8px;
+}
+
+.cashback-row {
+  display: grid;
+  grid-template-columns: 92px minmax(120px, 1fr) 128px 132px;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 10px;
+  background: rgba(42, 27, 62, 0.62);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: var(--radius-md);
+}
+
+.cashback-row.available {
+  border-color: rgba(218, 201, 96, 0.28);
+  background: rgba(218, 201, 96, 0.08);
+}
+
+.cashback-row.header {
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.04);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.cashback-row select {
+  width: 100%;
+  min-width: 0;
+  height: 40px;
+  padding: 0 34px 0 12px;
+  color: var(--text);
+  background:
+    linear-gradient(45deg, transparent 50%, var(--accent) 50%) right 14px center / 6px 6px no-repeat,
+    linear-gradient(135deg, var(--accent) 50%, transparent 50%) right 9px center / 6px 6px no-repeat,
+    rgba(16, 11, 24, 0.88);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  appearance: none;
+  font: inherit;
+  font-weight: 800;
+}
+
+.compact-field {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.compact-field span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.compact-field input {
+  width: 100%;
+  padding: 8px 10px;
+}
+
+.cashback-row span,
+.cashback-row strong {
+  min-width: 0;
+}
+
 .drop-list,
 .counted-list {
   display: grid;
@@ -524,6 +818,22 @@ h2 {
   place-items: center;
   border: 1px solid var(--line-strong);
   font-weight: 900;
+}
+
+.button-icon {
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+  pointer-events: none;
+}
+
+.remove-button .button-icon {
+  width: 17px;
+  height: 17px;
 }
 
 .icon-button,
@@ -595,7 +905,7 @@ h2 {
 }
 
 .rank-row {
-  grid-template-columns: 44px minmax(190px, 1.2fr) repeat(5, minmax(104px, 0.7fr));
+  grid-template-columns: 44px minmax(190px, 1.2fr) repeat(6, minmax(104px, 0.7fr));
 }
 
 .rank-position {
@@ -659,6 +969,7 @@ h2 {
   }
 
   .dungeon-layout,
+  .dg-config-layout,
   .settings-layout {
     grid-template-columns: 1fr;
   }
@@ -673,12 +984,21 @@ h2 {
 }
 
 @media (max-width: 780px) {
+  body {
+    overflow: auto;
+  }
+
   .app-shell {
     grid-template-columns: 1fr;
+    height: auto;
+    overflow: visible;
   }
 
   .sidebar {
+    position: static;
+    height: auto;
     min-height: auto;
+    overflow: visible;
   }
 
   .dungeon-buttons {
@@ -686,7 +1006,9 @@ h2 {
   }
 
   .workspace {
+    height: auto;
     padding: 16px;
+    overflow: visible;
   }
 
   .page-head,
@@ -701,6 +1023,7 @@ h2 {
   }
 
   .table-row,
+  .cashback-row,
   .counted-row,
   .setting-row,
   .dg-setting,
@@ -709,7 +1032,15 @@ h2 {
     grid-template-columns: 1fr;
   }
 
+  .table-row.alz-row,
+  .table-row.farm-row,
+  .compact-field,
+  .entry-money-cell {
+    grid-template-columns: 1fr;
+  }
+
   .table-row.header,
+  .cashback-row.header,
   .rank-row.header {
     display: none;
   }
@@ -717,7 +1048,10 @@ h2 {
   .run-bar input[type="number"],
   .pc-grid input,
   .settings-list input,
-  .data-table input {
+  .data-table input,
+  .compact-field input,
+  .cashback-row select,
+  .entry-mode-control {
     width: 100%;
   }
 }
