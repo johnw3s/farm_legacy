@@ -1,5 +1,15 @@
 const STORAGE_KEY = "farmLegacy.web.v3";
-const DATA_VERSION = 5;
+const DATA_VERSION = 6;
+const MARKET_TAX_SETTING = "Taxa do Mercado (%)";
+const WEEK_DAYS = [
+  { id: 1, short: "Seg", name: "Segunda" },
+  { id: 2, short: "Ter", name: "Terça" },
+  { id: 3, short: "Qua", name: "Quarta" },
+  { id: 4, short: "Qui", name: "Quinta" },
+  { id: 5, short: "Sex", name: "Sexta" },
+  { id: 6, short: "Sáb", name: "Sábado" },
+  { id: 0, short: "Dom", name: "Domingo" },
+];
 
 const alzFormat = new Intl.NumberFormat("pt-BR", {
   maximumFractionDigits: 0,
@@ -33,6 +43,7 @@ const defaultSettings = {
   "Núcleo Arcano (Baixo)": 38000,
   "Protetor PC (100 PC)": 11000000,
   "Card Cash Ouro (1000 Cash)": 77000000,
+  [MARKET_TAX_SETTING]: 4,
   "Material Graduado": 0,
   "Pedra Bruta da Dimensão (10 un.)": 1000000,
   "PC por item de craft": 2,
@@ -141,6 +152,12 @@ const ENTRY_MODE_LABELS = {
   craft: "Craft (Chloe)",
   npc: "NPC (Yul)",
 };
+const ENTRY_MODE_SHORT_LABELS = {
+  gems: "Gemas",
+  craft: "Craft",
+  npc: "NPC",
+};
+const ENTRY_MODE_ORDER = ["npc", "craft", "gems"];
 
 const DIMENSION_STONE_PACK_KEY = "Pedra Bruta da Dimensão (10 un.)";
 const CRAFT_ITEM_PC_COST_KEY = "PC por item de craft";
@@ -1206,27 +1223,35 @@ const app = {
     selectedDungeon: "lago",
     runs: 30,
     sellPc: true,
-    rankMode: "profit",
-    activeView: "dungeon",
+    rankMode: "hour",
+    activeView: "ranking",
+    favoriteDungeons: [],
+    farmPlan: [],
+    farmLogs: [],
+    dailyDraft: null,
     entryModes: {},
+    activeEntryModes: {},
     entryConfigOpen: {},
     countedDrops: {},
   },
 };
 
 const elements = {
+  dungeonPicker: document.querySelector(".dungeon-picker"),
   dungeonButtons: document.querySelector("#dungeon-buttons"),
   dungeonSearch: document.querySelector("#dungeon-search"),
   dungeonTitle: document.querySelector("#dungeon-title"),
   runsInput: document.querySelector("#runs-input"),
   sellPcToggle: document.querySelector("#sell-pc-toggle"),
-  totalRuns: document.querySelector("#total-runs"),
   resetCostDisplay: document.querySelector("#reset-cost-display"),
   entryList: document.querySelector("#entry-list"),
   entryModeSelect: document.querySelector("#entry-mode-select"),
+  farmTimeMinutes: document.querySelector("#farm-time-minutes"),
+  farmTimeSeconds: document.querySelector("#farm-time-seconds"),
   dgConfigTitle: document.querySelector("#dg-config-title"),
   dgConfigEntrySections: document.querySelector("#dg-config-entry-sections"),
   dgConfigPc: document.querySelector("#dg-config-pc"),
+  dgConfigEnabled: document.querySelector("#dg-config-enabled"),
   dgConfigCashbackList: document.querySelector("#dg-config-cashback-list"),
   openDgSettings: document.querySelector("#open-dg-settings"),
   backToFarm: document.querySelector("#back-to-farm"),
@@ -1236,7 +1261,6 @@ const elements = {
   cashbackList: document.querySelector("#cashback-list"),
   extraDropList: document.querySelector("#extra-drop-list"),
   pcPerRunDisplay: document.querySelector("#pc-per-run-display"),
-  pcStatus: document.querySelector("#pc-status"),
   pcUnitValue: document.querySelector("#pc-unit-value"),
   pcTotalCount: document.querySelector("#pc-total-count"),
   pcTotalValue: document.querySelector("#pc-total-value"),
@@ -1252,6 +1276,44 @@ const elements = {
   pcProfit100: document.querySelector("#pc-profit-100"),
   pcProfit1: document.querySelector("#pc-profit-1"),
   rankingTable: document.querySelector("#ranking-table"),
+  planDungeonSelect: document.querySelector("#plan-dungeon-select"),
+  planEntryModeSelect: document.querySelector("#plan-entry-mode-select"),
+  planRunsInput: document.querySelector("#plan-runs-input"),
+  addPlanItem: document.querySelector("#add-plan-item"),
+  planItemList: document.querySelector("#plan-item-list"),
+  planDayList: document.querySelector("#plan-day-list"),
+  planWeekCost: document.querySelector("#plan-week-cost"),
+  planWeekReturn: document.querySelector("#plan-week-return"),
+  planWeekProfit: document.querySelector("#plan-week-profit"),
+  planWeekTime: document.querySelector("#plan-week-time"),
+  logDateInput: document.querySelector("#log-date-input"),
+  logDungeonSelect: document.querySelector("#log-dungeon-select"),
+  logEntryModeSelect: document.querySelector("#log-entry-mode-select"),
+  logRunsInput: document.querySelector("#log-runs-input"),
+  logSellPcToggle: document.querySelector("#log-sell-pc-toggle"),
+  logNotesInput: document.querySelector("#log-notes-input"),
+  saveFarmLog: document.querySelector("#save-farm-log"),
+  logPreviewCost: document.querySelector("#log-preview-cost"),
+  logPreviewReturn: document.querySelector("#log-preview-return"),
+  logPreviewProfit: document.querySelector("#log-preview-profit"),
+  logPreviewTime: document.querySelector("#log-preview-time"),
+  logPreviewBreakdown: document.querySelector("#log-preview-breakdown"),
+  logFarmList: document.querySelector("#log-farm-list"),
+  logDropList: document.querySelector("#log-drop-list"),
+  loadStandardFarm: document.querySelector("#load-standard-farm"),
+  clearLogFarm: document.querySelector("#clear-log-farm"),
+  logManualItem: document.querySelector("#log-manual-item"),
+  logManualPrice: document.querySelector("#log-manual-price"),
+  addManualLogItem: document.querySelector("#add-manual-log-item"),
+  farmLogList: document.querySelector("#farm-log-list"),
+  summaryMonthInput: document.querySelector("#summary-month-input"),
+  summaryMonthCost: document.querySelector("#summary-month-cost"),
+  summaryMonthReturn: document.querySelector("#summary-month-return"),
+  summaryMonthProfit: document.querySelector("#summary-month-profit"),
+  summaryMonthTime: document.querySelector("#summary-month-time"),
+  summaryChart: document.querySelector("#summary-chart"),
+  summaryCalendar: document.querySelector("#summary-calendar"),
+  summaryLogList: document.querySelector("#summary-log-list"),
   resetLocalData: document.querySelector("#reset-local-data"),
 };
 
@@ -1288,7 +1350,14 @@ function loadSavedData() {
     app.ui = {
       ...app.ui,
       ...(saved.ui || {}),
+      activeView: "ranking",
+      rankMode: saved.ui?.rankMode === "rush" ? "rush" : "hour",
+      favoriteDungeons: Array.isArray(saved.ui?.favoriteDungeons) ? saved.ui.favoriteDungeons : [],
+      farmPlan: Array.isArray(saved.ui?.farmPlan) ? saved.ui.farmPlan : [],
+      farmLogs: Array.isArray(saved.ui?.farmLogs) ? saved.ui.farmLogs : [],
+      dailyDraft: saved.ui?.dailyDraft || null,
       entryModes: saved.ui?.entryModes || {},
+      activeEntryModes: saved.ui?.activeEntryModes || {},
       entryConfigOpen: saved.ui?.entryConfigOpen || {},
       countedDrops: saved.ui?.countedDrops || {},
     };
@@ -1330,14 +1399,56 @@ function jewelColor(item) {
   return normalizeJewelItem(item).replace("Jóia Enfraquecida ", "");
 }
 
+function jewelToneClass(item) {
+  const tones = {
+    Vermelha: "red",
+    Laranja: "orange",
+    Amarela: "yellow",
+    Verde: "green",
+    Azul: "blue",
+    Violeta: "violet",
+    Branca: "white",
+  };
+  return `jewel-${tones[jewelColor(item)] || "yellow"}`;
+}
+
+function jewelIconHtml(item) {
+  return `<span class="jewel-coin ${jewelToneClass(item)}" aria-hidden="true"></span>`;
+}
+
+function itemNameHtml(item, category, options = {}) {
+  const title = escapeHtml(options.title || item);
+  const label = escapeHtml(item);
+  const small = options.small ? `<small>${escapeHtml(options.small)}</small>` : "";
+
+  if (isJewelLine({ item, category })) {
+    return `${jewelIconHtml(item)}<span title="${title}">${label}</span>${small}`;
+  }
+
+  return `<span class="swatch ${swatchClass(category || item)}"></span><span title="${title}">${label}</span>${small}`;
+}
+
+function inlineItemNameHtml(item, category) {
+  const label = escapeHtml(item);
+  if (isJewelLine({ item, category })) {
+    return `${jewelIconHtml(item)}<span>${label}</span>`;
+  }
+  return label;
+}
+
 function jewelValue(item) {
   return jewelPrices[normalizeJewelItem(item)] || 0;
+}
+
+function cashbackRewardValue(reward, dungeon = currentDungeon(), entryMode = currentEntryMode(dungeon)) {
+  return jewelValue(reward.item) + integerValue(reward.entryQty) * entryCostForMode(dungeon, entryMode, 1);
 }
 
 function defaultCashbackForDungeon(dungeon) {
   return (cashbackTemplates[dungeon.id] || []).map(([runs, item]) => ({
     runs,
     item,
+    entryQty: 0,
     category: "Jóia",
   }));
 }
@@ -1348,6 +1459,7 @@ function normalizeCashbackRewards(rewards) {
     .map((reward) => ({
       runs: Math.max(1, Math.round(Number(reward?.runs || reward?.requiredRuns) || 1)),
       item: normalizeJewelItem(reward?.item || reward?.jewel),
+      entryQty: integerValue(reward?.entryQty ?? reward?.entries ?? 0),
       category: "Jóia",
     }))
     .sort((a, b) => a.runs - b.runs);
@@ -1363,6 +1475,19 @@ function baseRunLimit(dungeon = currentDungeon()) {
   return Math.max(1, Math.round(Number(dungeon.baseRuns) || defaultBaseRunLimit(dungeon)));
 }
 
+function dungeonTimeParts(dungeon = currentDungeon()) {
+  const totalSeconds = Math.max(0, Math.round(numberValue(dungeon.minutes) * 60));
+  return {
+    minutes: Math.floor(totalSeconds / 60),
+    seconds: totalSeconds % 60,
+  };
+}
+
+function setDungeonTimeFromParts(dungeon = currentDungeon(), minutes = 0, seconds = 0) {
+  const totalSeconds = integerValue(minutes) * 60 + Math.min(59, integerValue(seconds));
+  dungeon.minutes = totalSeconds / 60;
+}
+
 function resetGemQty(dungeon = currentDungeon()) {
   return Math.max(0, Math.round(Number(dungeon.resetCostGems ?? DEFAULT_RESET_GEMS)));
 }
@@ -1373,6 +1498,18 @@ function resetCount(dungeon = currentDungeon(), runs = effectiveRuns(dungeon)) {
 
 function resetCost(dungeon = currentDungeon(), runs = effectiveRuns(dungeon)) {
   return resetCount(dungeon, runs) * resetGemQty(dungeon) * gemUnitValue();
+}
+
+function farmLineQty(line, dungeon = currentDungeon()) {
+  if (line.qty !== undefined) return integerValue(line.qty);
+  if (line.qtyPerRun !== undefined) return integerValue(numberValue(line.qtyPerRun) * baseRunLimit(dungeon));
+  return 0;
+}
+
+function normalizeFarmLine(line, dungeon = currentDungeon()) {
+  const normalized = { ...line, qty: farmLineQty(line, dungeon) };
+  delete normalized.qtyPerRun;
+  return normalized;
 }
 
 function inferEntryMode(line) {
@@ -1458,7 +1595,7 @@ function ensureGemEntryLine(dungeon) {
   line.category = "Gema";
   line.entryMode = "gems";
   line.priceMode = "gem";
-  line.qty = Number(line.qty) || 20;
+  line.qty = integerValue(line.qty) || 20;
   return line;
 }
 
@@ -1473,7 +1610,38 @@ function availableEntryModes(dungeon = currentDungeon()) {
   if (npcEntryIsAvailable(dungeon)) modes.push("npc");
   if (craftRecipes[dungeon.id]) modes.push("craft");
   if (dungeon.gemEntryEnabled) modes.push("gems");
-  return modes;
+  return modes.sort((a, b) => ENTRY_MODE_ORDER.indexOf(a) - ENTRY_MODE_ORDER.indexOf(b));
+}
+
+function activeEntryModes(dungeon = currentDungeon()) {
+  const modes = availableEntryModes(dungeon);
+  if (!modes.length) return [];
+
+  const saved = app.ui.activeEntryModes?.[dungeon.id];
+  if (!Array.isArray(saved)) return [...modes];
+
+  const active = saved.filter((mode) => modes.includes(mode));
+  return active.length ? active : [modes[0]];
+}
+
+function normalizeActiveEntryModes(dungeon = currentDungeon()) {
+  if (!app.ui.activeEntryModes) app.ui.activeEntryModes = {};
+  app.ui.activeEntryModes[dungeon.id] = activeEntryModes(dungeon);
+}
+
+function setEntryModeActive(dungeon, mode, enabled) {
+  const modes = availableEntryModes(dungeon);
+  if (!modes.includes(mode)) return false;
+
+  const active = new Set(activeEntryModes(dungeon));
+  if (enabled) {
+    active.add(mode);
+  } else if (active.size > 1) {
+    active.delete(mode);
+  }
+
+  app.ui.activeEntryModes[dungeon.id] = modes.filter((availableMode) => active.has(availableMode));
+  return app.ui.activeEntryModes[dungeon.id].includes(mode) === enabled;
 }
 
 function ensureAvailableEntryMode(dungeon = currentDungeon()) {
@@ -1485,6 +1653,7 @@ function ensureAvailableEntryMode(dungeon = currentDungeon()) {
 }
 
 function renderEntryModeOptions() {
+  if (!elements.entryModeSelect) return;
   const dungeon = currentDungeon();
   const modes = availableEntryModes(dungeon);
   elements.entryModeSelect.innerHTML = modes
@@ -1514,6 +1683,7 @@ function normalizeAppData() {
   const useCurrentDefaults = (app.savedDataVersion || 0) < DATA_VERSION;
 
   app.dungeons.forEach((dungeon) => {
+    dungeon.enabled = dungeon.enabled !== false;
     dungeon.baseRuns = useCurrentDefaults ? defaultBaseRunLimit(dungeon) : baseRunLimit(dungeon);
     dungeon.resetCostGems = useCurrentDefaults ? DEFAULT_RESET_GEMS : resetGemQty(dungeon);
     dungeon.entries = (dungeon.entries || []).map((line) => {
@@ -1534,19 +1704,32 @@ function normalizeAppData() {
       if (isAlzEntry(normalized)) {
         normalized.item = "Alz";
         normalized.category = "Alz";
+        normalized.entryMode = "npc";
         delete normalized.price;
         delete normalized.priceKey;
         delete normalized.priceMode;
       }
 
+      if (!isAlzEntry(normalized) && !isCraftRecipeEntry(normalized)) {
+        normalized.qty = integerValue(normalized.qty);
+      }
+
       return normalized;
     });
+    if (Array.isArray(app.ui.countedDrops[dungeon.id])) {
+      app.ui.countedDrops[dungeon.id] = app.ui.countedDrops[dungeon.id].map((line) => ({
+        ...line,
+        qty: integerValue(line.qty),
+      }));
+    }
     dungeon.gemEntryEnabled = Boolean(dungeon.gemEntryEnabled ?? (dungeon.entries || []).some((line) => inferEntryMode(line) === "gems"));
     ensureGemEntryLine(dungeon);
     ensureCraftRecipeEntry(dungeon);
     ensureNpcEntryTemplate(dungeon, useCurrentDefaults);
     ensureGemOnlyEntryTemplate(dungeon);
-    dungeon.basic = (dungeon.basic || []).filter((line) => !isJewelLine(line));
+    dungeon.basic = (dungeon.basic || [])
+      .filter((line) => !isJewelLine(line))
+      .map((line) => normalizeFarmLine(line, dungeon));
     dungeon.cashback = normalizeCashbackRewards(
       useCurrentDefaults || !Array.isArray(dungeon.cashback) ? defaultCashbackForDungeon(dungeon) : dungeon.cashback,
     );
@@ -1554,7 +1737,15 @@ function normalizeAppData() {
       app.ui.entryModes[dungeon.id] = defaultEntryMode(dungeon);
     }
     ensureAvailableEntryMode(dungeon);
+    normalizeActiveEntryModes(dungeon);
   });
+
+  app.ui.farmLogs = farmLogs().map(normalizedFarmLog);
+  if (app.ui.dailyDraft?.dungeonId && app.dungeons.some((dungeon) => dungeon.id === app.ui.dailyDraft.dungeonId)) {
+    app.ui.dailyDraft.items = normalizedLogItems(app.ui.dailyDraft.items);
+  } else {
+    app.ui.dailyDraft = null;
+  }
 }
 
 function formatAlz(value) {
@@ -1575,6 +1766,7 @@ function applyAlzDisplay(node, value) {
   node.textContent = formatAlz(value);
   node.classList.remove(
     "alz-value",
+    "cost-value",
     "alz-tier-10k",
     "alz-tier-100k",
     "alz-tier-1m",
@@ -1583,10 +1775,28 @@ function applyAlzDisplay(node, value) {
     "alz-tier-1b",
     "alz-tier-10b",
     "alz-tier-100b",
+    "metric-multi-value",
   );
   const tierClass = alzTierClass(value);
   node.classList.add("alz-value");
   if (tierClass) node.classList.add(tierClass);
+}
+
+function applyCostDisplay(node, value) {
+  node.textContent = `- ${formatAlz(Math.abs(value))}`;
+  node.classList.remove(
+    "alz-value",
+    "alz-tier-10k",
+    "alz-tier-100k",
+    "alz-tier-1m",
+    "alz-tier-10m",
+    "alz-tier-100m",
+    "alz-tier-1b",
+    "alz-tier-10b",
+    "alz-tier-100b",
+    "metric-multi-value",
+  );
+  node.classList.add("alz-value", "cost-value");
 }
 
 function alzHtml(value, attributes = "") {
@@ -1595,10 +1805,24 @@ function alzHtml(value, attributes = "") {
   return `<span class="${className}"${attributes ? ` ${attributes}` : ""}>${formatAlz(value)}</span>`;
 }
 
+function costAlzHtml(value, attributes = "") {
+  return `<span class="alz-value cost-value"${attributes ? ` ${attributes}` : ""}>- ${formatAlz(Math.abs(value))}</span>`;
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
 function iconSvg(icon) {
   const paths = {
     plus: '<path d="M12 5v14"></path><path d="M5 12h14"></path>',
     x: '<path d="M18 6 6 18"></path><path d="m6 6 12 12"></path>',
+    star: '<path d="m12 3 2.7 5.47 6.03.88-4.36 4.25 1.03 6-5.4-2.84-5.4 2.84 1.03-6-4.36-4.25 6.03-.88L12 3Z"></path>',
   };
 
   return `
@@ -1616,6 +1840,10 @@ function numberValue(value) {
   return Math.max(0, Number(String(value).replace(",", ".")) || 0);
 }
 
+function integerValue(value) {
+  return Math.max(0, Math.round(numberValue(value)));
+}
+
 function moneyValue(value) {
   return Math.max(0, Number(String(value).replace(/\s/g, "").replace(/\./g, "").replace(",", ".")) || 0);
 }
@@ -1625,15 +1853,69 @@ function formatMoneyInput(input) {
 }
 
 function isMoneySettingKey(key) {
-  return !key.startsWith("Quantidade") && key !== CRAFT_ITEM_PC_COST_KEY;
+  return !key.startsWith("Quantidade") && key !== CRAFT_ITEM_PC_COST_KEY && key !== MARKET_TAX_SETTING;
 }
 
 function currentDungeon() {
   return app.dungeons.find((dungeon) => dungeon.id === app.ui.selectedDungeon) || app.dungeons[0];
 }
 
+function isDungeonEnabled(dungeon) {
+  return dungeon?.enabled !== false;
+}
+
+function enabledDungeons() {
+  return app.dungeons.filter(isDungeonEnabled);
+}
+
+function selectableDungeons() {
+  return enabledDungeons().length ? enabledDungeons() : app.dungeons;
+}
+
+function favoriteDungeonIds() {
+  if (!Array.isArray(app.ui.favoriteDungeons)) app.ui.favoriteDungeons = [];
+  return app.ui.favoriteDungeons;
+}
+
+function isFavoriteDungeon(dungeonId) {
+  return favoriteDungeonIds().includes(dungeonId);
+}
+
+function toggleFavoriteDungeon(dungeonId) {
+  const favorites = favoriteDungeonIds();
+  if (favorites.includes(dungeonId)) {
+    app.ui.favoriteDungeons = favorites.filter((id) => id !== dungeonId);
+  } else {
+    favorites.push(dungeonId);
+  }
+}
+
+function favoriteButtonHtml(dungeon, compact = false) {
+  const active = isFavoriteDungeon(dungeon.id);
+  return `
+    <button
+      class="favorite-button ${active ? "active" : ""} ${compact ? "compact" : ""}"
+      data-favorite-dungeon="${dungeon.id}"
+      type="button"
+      aria-pressed="${active}"
+      aria-label="${active ? "Remover dos favoritos" : "Adicionar aos favoritos"}: ${dungeon.name}"
+      title="${active ? "Remover dos favoritos" : "Adicionar aos favoritos"}"
+    >
+      ${iconSvg("star")}
+    </button>
+  `;
+}
+
 function gemUnitValue() {
   return (app.settings["Card Cash Ouro (1000 Cash)"] || 0) / 1000;
+}
+
+function marketTaxRate() {
+  return Math.min(1, Math.max(0, numberValue(app.settings[MARKET_TAX_SETTING] ?? 4) / 100));
+}
+
+function auctionNet(value) {
+  return Math.max(0, (Number(value) || 0) * (1 - marketTaxRate()));
 }
 
 function protectorCost() {
@@ -1646,8 +1928,12 @@ function protectorCost() {
   );
 }
 
+function pcProfit100() {
+  return auctionNet(app.settings["Protetor PC (100 PC)"] || 0) - protectorCost();
+}
+
 function pcUnitProfit() {
-  return ((app.settings["Protetor PC (100 PC)"] || 0) - protectorCost()) / 100;
+  return pcProfit100() / 100;
 }
 
 function craftStoneUnitValue() {
@@ -1690,7 +1976,7 @@ function priceForLine(line) {
 
 function entryLineCostPerRun(line) {
   if (isAlzEntry(line)) return Number(line.qty) || 0;
-  return (Number(line.qty) || 0) * priceForLine(line);
+  return integerValue(line.qty) * priceForLine(line);
 }
 
 function canEditEntryQty(line) {
@@ -1711,11 +1997,14 @@ function currentEntryMode(dungeon = currentDungeon()) {
   return modes.includes(mode) ? mode : modes[0] || "npc";
 }
 
-function activeEntryRecords(dungeon = currentDungeon()) {
-  const mode = currentEntryMode(dungeon);
+function entryRecordsForMode(dungeon = currentDungeon(), mode = currentEntryMode(dungeon)) {
   return (dungeon.entries || [])
     .map((line, index) => ({ line, index }))
-    .filter((record) => record.line.entryMode === mode);
+    .filter((record) => record.line.entryMode === mode && !(mode === "craft" && isAlzEntry(record.line)));
+}
+
+function activeEntryRecords(dungeon = currentDungeon()) {
+  return entryRecordsForMode(dungeon, currentEntryMode(dungeon));
 }
 
 function ensureAlzEntryForMode(dungeon = currentDungeon(), mode = currentEntryMode(dungeon)) {
@@ -1749,9 +2038,9 @@ function addEntryItemToMode(mode, item, qty = 1) {
 
   const existing = dungeon.entries.find((line) => line.entryMode === mode && line.item === item);
   if (existing) {
-    existing.qty = numberValue(existing.qty) + qty;
+    existing.qty = integerValue(existing.qty) + integerValue(qty);
   } else {
-    dungeon.entries.push(settingItem(item, qty, mode));
+    dungeon.entries.push(settingItem(item, integerValue(qty), mode));
   }
 }
 
@@ -1775,20 +2064,25 @@ function entryCost(dungeon = currentDungeon(), runs = effectiveRuns(dungeon)) {
 
 function entryCostForMode(dungeon, mode, runs = 1) {
   return (dungeon.entries || [])
-    .filter((line) => line.entryMode === mode)
+    .filter((line) => line.entryMode === mode && !(mode === "craft" && isAlzEntry(line)))
     .reduce((sum, line) => sum + entryLineCostPerRun(line) * runs, 0);
 }
 
-function basicReturn(dungeon = currentDungeon(), runs = effectiveRuns(dungeon)) {
-  return (dungeon.basic || [])
-    .filter((line) => !isJewelLine(line))
-    .reduce((sum, line) => sum + line.qtyPerRun * priceForLine(line) * runs, 0);
+function entryCostForPlan(dungeon, mode, runs = 1) {
+  return entryCostForMode(dungeon, mode, runs) + resetCost(dungeon, runs);
 }
 
-function cashbackReturn(dungeon = currentDungeon(), runs = effectiveRuns(dungeon)) {
+function basicReturn(dungeon = currentDungeon(), runs = effectiveRuns(dungeon)) {
+  const gross = (dungeon.basic || [])
+    .filter((line) => !isJewelLine(line))
+    .reduce((sum, line) => sum + farmLineQty(line, dungeon) * priceForLine(line), 0);
+  return auctionNet(gross);
+}
+
+function cashbackReturn(dungeon = currentDungeon(), runs = effectiveRuns(dungeon), entryMode = currentEntryMode(dungeon)) {
   return (dungeon.cashback || [])
     .filter((reward) => runs >= reward.runs)
-    .reduce((sum, reward) => sum + jewelValue(reward.item), 0);
+    .reduce((sum, reward) => sum + cashbackRewardValue(reward, dungeon, entryMode), 0);
 }
 
 function countedDrops(dungeon = currentDungeon()) {
@@ -1827,7 +2121,7 @@ function addDropToFarm(dungeon, candidateIndex) {
   if (!info.item) return;
 
   if (!Array.isArray(candidate) && candidate.farmLine) {
-    dungeon.basic.push(clone(candidate.farmLine));
+    dungeon.basic.push(normalizeFarmLine(candidate.farmLine, dungeon));
     return;
   }
 
@@ -1869,15 +2163,19 @@ function farmRecords(dungeon = currentDungeon()) {
 }
 
 function farmRecordTotal(record, dungeon = currentDungeon(), runs = effectiveRuns(dungeon)) {
+  let gross = 0;
   if (record.source === "basic") {
-    return record.line.qtyPerRun * priceForLine(record.line) * runs;
+    gross = farmLineQty(record.line, dungeon) * priceForLine(record.line);
+  } else {
+    gross = integerValue(record.line.qty) * record.line.price;
   }
 
-  return record.line.qty * record.line.price;
+  return auctionNet(gross);
 }
 
 function extraReturn(dungeon = currentDungeon()) {
-  return countedDrops(dungeon).reduce((sum, line) => sum + line.qty * line.price, 0);
+  const gross = countedDrops(dungeon).reduce((sum, line) => sum + integerValue(line.qty) * line.price, 0);
+  return auctionNet(gross);
 }
 
 function farmReturn(dungeon = currentDungeon(), runs = effectiveRuns(dungeon)) {
@@ -1888,9 +2186,331 @@ function pcReturn(dungeon = currentDungeon(), runs = effectiveRuns(dungeon)) {
   return app.ui.sellPc ? dungeon.pc * runs * pcUnitProfit() : 0;
 }
 
+function pcReturnForOption(dungeon = currentDungeon(), runs = effectiveRuns(dungeon), sellPc = true) {
+  return sellPc ? dungeon.pc * runs * pcUnitProfit() : 0;
+}
+
+function farmEstimate(dungeon = currentDungeon(), runs = effectiveRuns(dungeon), entryMode = currentEntryMode(dungeon), sellPc = app.ui.sellPc) {
+  const cost = entryCostForPlan(dungeon, entryMode, runs);
+  const farm = farmReturn(dungeon, runs);
+  const cashback = cashbackReturn(dungeon, runs, entryMode);
+  const pc = pcReturnForOption(dungeon, runs, sellPc);
+  const retorno = farm + cashback + pc;
+  const lucro = retorno - cost;
+  const minutes = dungeon.minutes * runs;
+  return { cost, farm, cashback, pc, retorno, lucro, minutes };
+}
+
 function profit(dungeon = currentDungeon(), runs = effectiveRuns(dungeon), includeExtras = true) {
+  const entryMode = activeEntryModes(dungeon)[0] || currentEntryMode(dungeon);
   const farm = includeExtras || dungeon.id === currentDungeon().id ? farmReturn(dungeon, runs) : basicReturn(dungeon, runs);
-  return farm + cashbackReturn(dungeon, runs) + pcReturn(dungeon, runs) - entryCost(dungeon, runs);
+  return farm + cashbackReturn(dungeon, runs, entryMode) + pcReturn(dungeon, runs) - entryCostForPlan(dungeon, entryMode, runs);
+}
+
+function planItems() {
+  if (!Array.isArray(app.ui.farmPlan)) app.ui.farmPlan = [];
+  return app.ui.farmPlan;
+}
+
+function planItemDungeon(item) {
+  return app.dungeons.find((dungeon) => dungeon.id === item.dungeonId) || app.dungeons[0];
+}
+
+function normalizedPlanItem(item) {
+  const dungeon = planItemDungeon(item);
+  const modes = availableEntryModes(dungeon);
+  const mode = modes.includes(item.entryMode) ? item.entryMode : defaultEntryMode(dungeon);
+  const days = Array.isArray(item.days) && item.days.length ? item.days.map(integerValue) : [1, 2, 3, 4, 5];
+  return {
+    id: item.id || `plan-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    dungeonId: dungeon.id,
+    entryMode: mode,
+    runs: Math.max(1, integerValue(item.runs) || baseRunLimit(dungeon)),
+    days: [...new Set(days)].filter((day) => WEEK_DAYS.some((weekDay) => weekDay.id === day)),
+  };
+}
+
+function planItemTotals(item) {
+  const normalized = normalizedPlanItem(item);
+  const dungeon = planItemDungeon(normalized);
+  const runs = normalized.runs;
+  return { ...normalized, dungeon, runs, ...farmEstimate(dungeon, runs, normalized.entryMode, app.ui.sellPc) };
+}
+
+function planDayTotals(dayId) {
+  return planItems()
+    .map(planItemTotals)
+    .filter((item) => item.days.includes(dayId))
+    .reduce(
+      (sum, item) => ({
+        cost: sum.cost + item.cost,
+        retorno: sum.retorno + item.retorno,
+        lucro: sum.lucro + item.lucro,
+        minutes: sum.minutes + item.minutes,
+        count: sum.count + 1,
+      }),
+      { cost: 0, retorno: 0, lucro: 0, minutes: 0, count: 0 },
+    );
+}
+
+function farmLogs() {
+  if (!Array.isArray(app.ui.farmLogs)) app.ui.farmLogs = [];
+  return app.ui.farmLogs;
+}
+
+function todayIso() {
+  const now = new Date();
+  const local = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
+  return local.toISOString().slice(0, 10);
+}
+
+function currentMonthIso() {
+  return todayIso().slice(0, 7);
+}
+
+function dateLabel(isoDate) {
+  if (!isoDate) return "";
+  const date = new Date(`${isoDate}T00:00:00`);
+  return date.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
+}
+
+function selectedLogDungeon() {
+  return app.dungeons.find((dungeon) => dungeon.id === elements.logDungeonSelect?.value) || currentDungeon();
+}
+
+function selectedLogRuns(dungeon = selectedLogDungeon()) {
+  return Math.max(1, integerValue(elements.logRunsInput?.value) || baseRunLimit(dungeon));
+}
+
+function selectedLogEntryMode(dungeon = selectedLogDungeon()) {
+  const modes = availableEntryModes(dungeon);
+  const selectedMode = elements.logEntryModeSelect?.value;
+  return modes.includes(selectedMode) ? selectedMode : defaultEntryMode(dungeon);
+}
+
+function normalizeLogItem(item) {
+  return {
+    item: String(item?.item || "").trim(),
+    category: item?.category || "Drop",
+    qty: integerValue(item?.qty),
+    price: moneyValue(item?.price ?? 0),
+  };
+}
+
+function normalizedLogItems(items) {
+  return (Array.isArray(items) ? items : [])
+    .map(normalizeLogItem)
+    .filter((item) => item.item && item.qty > 0);
+}
+
+function resetDailyDraft(dungeon = selectedLogDungeon()) {
+  app.ui.dailyDraft = {
+    dungeonId: dungeon.id,
+    items: [],
+  };
+  return app.ui.dailyDraft;
+}
+
+function dailyDraft(dungeon = selectedLogDungeon()) {
+  if (!app.ui.dailyDraft || app.ui.dailyDraft.dungeonId !== dungeon.id) {
+    return resetDailyDraft(dungeon);
+  }
+  app.ui.dailyDraft.items = normalizedLogItems(app.ui.dailyDraft.items);
+  return app.ui.dailyDraft;
+}
+
+function dailyDraftItems(dungeon = selectedLogDungeon()) {
+  return dailyDraft(dungeon).items;
+}
+
+function knownDropPrice(item) {
+  if (Object.prototype.hasOwnProperty.call(app.settings, item)) return app.settings[item] || 0;
+  if (Object.prototype.hasOwnProperty.call(jewelPrices, item)) return jewelValue(item);
+  return 0;
+}
+
+function logQtyFromFarmRecord(record, dungeon = selectedLogDungeon(), runs = selectedLogRuns(dungeon)) {
+  if (record.source === "basic") {
+    return integerValue((integerValue(record.line.qty) / baseRunLimit(dungeon)) * runs);
+  }
+  return integerValue(record.line.qty) || 1;
+}
+
+function logItemFromFarmRecord(record, dungeon = selectedLogDungeon(), runs = selectedLogRuns(dungeon)) {
+  return normalizeLogItem({
+    item: record.line.item,
+    category: record.line.category || "Farm",
+    qty: Math.max(1, logQtyFromFarmRecord(record, dungeon, runs)),
+    price: priceForLine(record.line),
+  });
+}
+
+function logItemFromDropCandidate(candidate) {
+  const info = dropCandidateInfo(candidate);
+  const sourceLine = !Array.isArray(candidate) && (candidate.farmLine || candidate.countedLine);
+  return normalizeLogItem({
+    item: info.item,
+    category: info.category,
+    qty: sourceLine ? integerValue(sourceLine.qty) || 1 : 1,
+    price: sourceLine ? priceForLine(sourceLine) || sourceLine.price || knownDropPrice(info.item) : knownDropPrice(info.item),
+  });
+}
+
+function addLogItem(item) {
+  const draft = dailyDraft();
+  const normalized = normalizeLogItem(item);
+  if (!normalized.item) return;
+  const existing = draft.items.find((current) => current.item === normalized.item);
+  if (existing) {
+    existing.qty = integerValue(existing.qty) + Math.max(1, normalized.qty);
+    if (!existing.price && normalized.price) existing.price = normalized.price;
+  } else {
+    draft.items.push({
+      ...normalized,
+      qty: Math.max(1, normalized.qty),
+    });
+  }
+}
+
+function logDropCandidates(dungeon = selectedLogDungeon()) {
+  const draftItems = new Set(dailyDraftItems(dungeon).map((item) => item.item));
+  const standardCandidates = farmRecords(dungeon).map((record) => ({
+    item: record.line.item,
+    category: record.line.category || "Farm",
+    price: priceForLine(record.line),
+    qty: logQtyFromFarmRecord(record, dungeon),
+    source: "standard",
+    record,
+  }));
+  const extraCandidates = (dungeon.extras || []).map((candidate, index) => {
+    const info = dropCandidateInfo(candidate);
+    return {
+      ...info,
+      price: knownDropPrice(info.item),
+      qty: 1,
+      source: "extra",
+      index,
+      candidate,
+    };
+  });
+
+  return [...standardCandidates, ...extraCandidates]
+    .filter((candidate) => candidate.item && !draftItems.has(candidate.item))
+    .sort((a, b) => String(a.category).localeCompare(String(b.category)) || String(a.item).localeCompare(String(b.item)));
+}
+
+function loadStandardFarmToDraft() {
+  const dungeon = selectedLogDungeon();
+  const runs = selectedLogRuns(dungeon);
+  app.ui.dailyDraft = {
+    dungeonId: dungeon.id,
+    items: farmRecords(dungeon).map((record) => logItemFromFarmRecord(record, dungeon, runs)),
+  };
+}
+
+function farmReturnFromLogItems(items) {
+  const gross = normalizedLogItems(items).reduce((sum, item) => sum + integerValue(item.qty) * moneyValue(item.price), 0);
+  return auctionNet(gross);
+}
+
+function selectedLogEstimate() {
+  const dungeon = selectedLogDungeon();
+  const runs = selectedLogRuns(dungeon);
+  const entryMode = selectedLogEntryMode(dungeon);
+  const sellPc = elements.logSellPcToggle?.checked ?? app.ui.sellPc;
+  const cost = entryCostForPlan(dungeon, entryMode, runs);
+  const items = normalizedLogItems(dailyDraftItems(dungeon));
+  const farm = farmReturnFromLogItems(items);
+  const cashback = cashbackReturn(dungeon, runs);
+  const pc = pcReturnForOption(dungeon, runs, sellPc);
+  const retorno = farm + cashback + pc;
+  const lucro = retorno - cost;
+  const minutes = dungeon.minutes * runs;
+  return { dungeon, runs, entryMode, sellPc, items, cost, farm, cashback, pc, retorno, lucro, minutes };
+}
+
+function normalizedFarmLog(log) {
+  const dungeon = app.dungeons.find((item) => item.id === log?.dungeonId) || app.dungeons[0];
+  const runs = Math.max(1, integerValue(log?.runs) || baseRunLimit(dungeon));
+  const entryMode = availableEntryModes(dungeon).includes(log?.entryMode) ? log.entryMode : defaultEntryMode(dungeon);
+  const sellPc = log?.sellPc !== false;
+  const estimate = farmEstimate(dungeon, runs, entryMode, sellPc);
+  const items = normalizedLogItems(log?.items || []);
+  const itemFarm = items.length ? farmReturnFromLogItems(items) : estimate.farm;
+  const farm = Number.isFinite(Number(log?.farm)) ? Number(log.farm) : itemFarm;
+  const cashback = Number.isFinite(Number(log?.cashback)) ? Number(log.cashback) : estimate.cashback;
+  const pc = Number.isFinite(Number(log?.pc)) ? Number(log.pc) : estimate.pc;
+  const retorno = Number.isFinite(Number(log?.retorno)) ? Number(log.retorno) : farm + cashback + pc;
+  const cost = Number.isFinite(Number(log?.cost)) ? Number(log.cost) : estimate.cost;
+
+  return {
+    id: log?.id || `log-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    date: log?.date || todayIso(),
+    dungeonId: dungeon.id,
+    dungeonName: log?.dungeonName || dungeon.name,
+    runs,
+    entryMode,
+    sellPc,
+    notes: log?.notes || "",
+    items,
+    cost,
+    farm,
+    cashback,
+    pc,
+    retorno,
+    lucro: Number.isFinite(Number(log?.lucro)) ? Number(log.lucro) : retorno - cost,
+    minutes: Number.isFinite(Number(log?.minutes)) ? Number(log.minutes) : estimate.minutes,
+    createdAt: log?.createdAt || new Date().toISOString(),
+  };
+}
+
+function sortedFarmLogs(logs = farmLogs()) {
+  return logs
+    .map(normalizedFarmLog)
+    .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt));
+}
+
+function aggregateLogs(logs) {
+  return logs.reduce(
+    (sum, log) => ({
+      cost: sum.cost + log.cost,
+      retorno: sum.retorno + log.retorno,
+      lucro: sum.lucro + log.lucro,
+      minutes: sum.minutes + log.minutes,
+      runs: sum.runs + log.runs,
+      count: sum.count + 1,
+    }),
+    { cost: 0, retorno: 0, lucro: 0, minutes: 0, runs: 0, count: 0 },
+  );
+}
+
+function farmLogRowHtml(log, options = {}) {
+  const showDate = options.showDate !== false;
+  const dungeonName = escapeHtml(log.dungeonName);
+  const notes = escapeHtml(log.notes);
+  const itemCount = Array.isArray(log.items) ? log.items.length : 0;
+  return `
+    <div class="farm-log-row">
+      <div>
+        <strong title="${dungeonName}">${dungeonName}</strong>
+        <small>${showDate ? `${dateLabel(log.date)} • ` : ""}${formatNumber(log.runs)} DGs • ${ENTRY_MODE_LABELS[log.entryMode] || "Entrada"}${log.sellPc ? " • PC vendido" : " • PC guardado"}${itemCount ? ` • ${itemCount} item${itemCount > 1 ? "s" : ""}` : ""}</small>
+        ${notes ? `<em>${notes}</em>` : ""}
+      </div>
+      <strong>${costAlzHtml(log.cost)}</strong>
+      <strong>${alzHtml(log.retorno)}</strong>
+      <strong>${alzHtml(log.lucro)}</strong>
+      <span>${formatNumber(log.minutes)} min</span>
+      <button class="remove-button" data-remove-farm-log="${log.id}" type="button" aria-label="Remover registro de ${dungeonName}">${iconSvg("x")}</button>
+    </div>
+  `;
+}
+
+function logsByDate(logs) {
+  return logs.reduce((groups, log) => {
+    groups[log.date] = groups[log.date] || [];
+    groups[log.date].push(log);
+    return groups;
+  }, {});
 }
 
 function swatchClass(category) {
@@ -1909,9 +2529,16 @@ function renderView() {
     button.classList.toggle("active", button.dataset.view === viewName);
   });
   document.querySelector(`#${viewName}-view`)?.classList.add("active-view");
+  if (elements.dungeonPicker) {
+    elements.dungeonPicker.hidden = !["dungeon", "dg-settings"].includes(viewName);
+  }
 }
 
 function setActiveView(viewName) {
+  if (viewName === "dungeon" && !isDungeonEnabled(currentDungeon())) {
+    app.ui.selectedDungeon = selectableDungeons()[0]?.id || app.dungeons[0]?.id;
+    app.ui.runs = baseRunLimit(currentDungeon());
+  }
   app.ui.activeView = viewName;
   document.querySelectorAll(".nav-button").forEach((button) => {
     button.classList.toggle("active", button.dataset.view === viewName);
@@ -1924,57 +2551,83 @@ function setActiveView(viewName) {
 function renderDungeonButtons() {
   const query = elements.dungeonSearch.value.trim().toLowerCase();
   elements.dungeonButtons.innerHTML = "";
+  const showAll = app.ui.activeView === "dg-settings";
+  const list = showAll ? app.dungeons : selectableDungeons();
 
-  app.dungeons
-    .filter((dungeon) => dungeon.name.toLowerCase().includes(query))
-    .forEach((dungeon) => {
-      const button = document.createElement("button");
-      button.className = `dungeon-button ${dungeon.id === app.ui.selectedDungeon ? "active" : ""}`;
-      button.textContent = dungeon.name;
-      button.type = "button";
-      button.addEventListener("click", () => {
+  list
+    .map((dungeon, order) => ({ dungeon, order }))
+    .filter(({ dungeon }) => dungeon.name.toLowerCase().includes(query))
+    .sort((a, b) => Number(isFavoriteDungeon(b.dungeon.id)) - Number(isFavoriteDungeon(a.dungeon.id)) || a.order - b.order)
+    .forEach(({ dungeon }) => {
+      const row = document.createElement("div");
+      row.className = `dungeon-button-row ${dungeon.id === app.ui.selectedDungeon ? "active" : ""}`;
+      row.innerHTML = `
+        ${favoriteButtonHtml(dungeon, true)}
+        <button class="dungeon-button ${dungeon.id === app.ui.selectedDungeon ? "active" : ""}" type="button">${dungeon.name}</button>
+      `;
+      row.querySelector(".dungeon-button").addEventListener("click", () => {
         app.ui.selectedDungeon = dungeon.id;
         app.ui.runs = baseRunLimit(dungeon);
         saveData();
         render();
       });
-      elements.dungeonButtons.appendChild(button);
+      elements.dungeonButtons.appendChild(row);
     });
 }
 
 function renderEntries() {
   const dungeon = currentDungeon();
-  const records = activeEntryRecords(dungeon);
-  const selectedMode = currentEntryMode(dungeon);
-  elements.entryList.innerHTML = `
-    <div class="table-row header entry-row">
-      <span>Item</span>
-      <span>Qtd/DG</span>
-      <span>Preço</span>
-      <span>Total/DG</span>
-    </div>
-  `;
+  const modes = availableEntryModes(dungeon);
+  const enabledModes = activeEntryModes(dungeon);
+  elements.entryList.innerHTML = "";
 
-  if (!records.length) {
-    elements.entryList.innerHTML += `<div class="empty-state">Entrada ainda não cadastrada para ${ENTRY_MODE_LABELS[selectedMode]}.</div>`;
+  if (!modes.length) {
+    elements.entryList.innerHTML += `<div class="empty-state">Entrada ainda não cadastrada para esta DG.</div>`;
     return;
   }
 
-  records.forEach(({ line, index }) => {
-    const recipe = craftRecipeForLine(line);
-    const row = document.createElement("div");
-    row.className = "table-row entry-row";
-    row.innerHTML = `
-      <div class="item-name">
-        <span class="swatch ${swatchClass(line.category || line.item)}"></span>
-        <span title="${recipe ? craftRecipeDetails(recipe) : line.item}">${recipe ? "Craft (Chloe)" : line.item}</span>
-        ${recipe ? `<small>${craftRecipeDetails(recipe)}</small>` : ""}
+  modes.forEach((mode) => {
+    const isActive = enabledModes.includes(mode);
+    const isLastActive = isActive && enabledModes.length === 1;
+    const records = entryRecordsForMode(dungeon, mode);
+    const section = document.createElement("section");
+    section.className = `entry-mode-card ${isActive ? "active" : "inactive"}`;
+    section.innerHTML = `
+      <div class="entry-mode-card-head">
+        <div>
+          <span>${ENTRY_MODE_LABELS[mode]}</span>
+          <strong>${costAlzHtml(entryCostForMode(dungeon, mode, 1))}</strong>
+        </div>
+        <label class="mini-toggle" title="${isLastActive ? "Pelo menos uma entrada precisa ficar ativa" : "Usar esta entrada no cálculo"}">
+          <input data-entry-mode-toggle="${mode}" type="checkbox" ${isActive ? "checked" : ""} ${isLastActive ? "disabled" : ""} />
+          <span></span>
+        </label>
       </div>
-      <strong>${isAlzEntry(line) ? "Valor/DG" : recipe ? craftRecipeChance(recipe) : formatNumber(line.qty)}</strong>
-      <strong>${isAlzEntry(line) ? "Moeda" : recipe ? "Custo esperado" : alzHtml(priceForLine(line))}</strong>
-      <strong class="entry-total" data-entry-total="${index}">${alzHtml(entryLineCostPerRun(line))}</strong>
+      <div class="entry-mode-card-list">
+        ${
+          records.length
+            ? records
+                .map(({ line, index }) => {
+                  const recipe = craftRecipeForLine(line);
+                  const title = recipe ? craftRecipeDetails(recipe) : line.item;
+                  const label = recipe ? "Craft (Chloe)" : line.item;
+                  const detail = isAlzEntry(line) ? "Valor/DG" : recipe ? craftRecipeChance(recipe) : `Qtd ${formatNumber(line.qty)}`;
+                  return `
+                    <div class="entry-compact-row">
+                      <div class="item-name">
+                        ${itemNameHtml(label, line.category || line.item, { title, small: recipe ? craftRecipeDetails(recipe) : "" })}
+                      </div>
+                      <small>${detail}</small>
+                      <strong class="entry-total" data-entry-total="${index}">${costAlzHtml(entryLineCostPerRun(line))}</strong>
+                    </div>
+                  `;
+                })
+                .join("")
+            : `<div class="empty-state">Sem itens cadastrados para esta entrada.</div>`
+        }
+      </div>
     `;
-    elements.entryList.appendChild(row);
+    elements.entryList.appendChild(section);
   });
 }
 
@@ -2016,15 +2669,14 @@ function renderNpcEntrySection(dungeon) {
         return `
           <div class="table-row entry-config-row alz-row">
             <div class="item-name">
-              <span class="swatch ${swatchClass(line.category || line.item)}"></span>
-              <span title="${line.item}">${line.item}</span>
+              ${itemNameHtml(line.item, line.category || line.item)}
             </div>
             <label class="entry-money-cell">
               <span>Valor/DG</span>
               <input data-entry-index="${index}" data-entry-field="alz" data-money-input="true" type="text" inputmode="numeric" autocomplete="off" value="${formatAlzNumber(line.qty)}" />
             </label>
             <strong>Moeda</strong>
-            <strong class="entry-total" data-entry-total="${index}">${alzHtml(entryLineCostPerRun(line))}</strong>
+            <strong class="entry-total" data-entry-total="${index}">${costAlzHtml(entryLineCostPerRun(line))}</strong>
             <span></span>
           </div>
         `;
@@ -2033,12 +2685,11 @@ function renderNpcEntrySection(dungeon) {
       return `
         <div class="table-row entry-config-row">
           <div class="item-name">
-            <span class="swatch ${swatchClass(line.category || line.item)}"></span>
-            <span title="${line.item}">${line.item}</span>
+            ${itemNameHtml(line.item, line.category || line.item)}
           </div>
-          <input data-entry-index="${index}" data-entry-field="qty" type="number" min="0" step="0.01" value="${line.qty}" />
+          <input data-entry-index="${index}" data-entry-field="qty" type="number" min="0" step="1" value="${integerValue(line.qty)}" />
           <input data-entry-index="${index}" data-entry-field="price" data-money-input="true" type="text" inputmode="numeric" autocomplete="off" value="${formatAlzNumber(priceForLine(line))}" disabled />
-          <strong class="entry-total" data-entry-total="${index}">${alzHtml(entryLineCostPerRun(line))}</strong>
+          <strong class="entry-total" data-entry-total="${index}">${costAlzHtml(entryLineCostPerRun(line))}</strong>
           <button class="remove-button" data-remove-entry-index="${index}" type="button" aria-label="Remover ${line.item} da entrada">${iconSvg("x")}</button>
         </div>
       `;
@@ -2062,7 +2713,7 @@ function renderNpcEntrySection(dungeon) {
     </div>
   `;
 
-  return renderEntrySection(dungeon, "npc", ENTRY_MODE_LABELS.npc, alzHtml(entryCostForMode(dungeon, "npc")), body);
+  return renderEntrySection(dungeon, "npc", ENTRY_MODE_LABELS.npc, costAlzHtml(entryCostForMode(dungeon, "npc")), body);
 }
 
 function renderGemEntrySection(dungeon) {
@@ -2077,10 +2728,10 @@ function renderGemEntrySection(dungeon) {
       </div>
       <label class="compact-field">
         <span>Qtd</span>
-        <input data-gem-entry-index="${index}" type="number" min="0" step="1" value="${line.qty}" />
+        <input data-gem-entry-index="${index}" type="number" min="0" step="1" value="${integerValue(line.qty)}" />
       </label>
       <strong>${alzHtml(gemUnitValue())} / gema</strong>
-      <strong data-entry-total="${index}">${alzHtml(total)}</strong>
+      <strong data-entry-total="${index}">${costAlzHtml(total)}</strong>
     </div>
   `;
   const controls = `
@@ -2094,7 +2745,7 @@ function renderGemEntrySection(dungeon) {
     dungeon,
     "gems",
     ENTRY_MODE_LABELS.gems,
-    dungeon.gemEntryEnabled ? alzHtml(total) : "Desativado",
+    dungeon.gemEntryEnabled ? costAlzHtml(total) : "Desativado",
     body,
     controls,
   );
@@ -2111,13 +2762,13 @@ function renderCraftEntrySection(dungeon) {
         <small>${craftRecipeDetails(recipe)}</small>
       </div>
       <strong>${craftRecipeChance(recipe)}</strong>
-      <strong>${alzHtml(craftRecipeAttemptCost(recipe))} / tentativa</strong>
-      <strong>${alzHtml(craftRecipeExpectedCost(recipe))}</strong>
+      <strong>${costAlzHtml(craftRecipeAttemptCost(recipe))} / tentativa</strong>
+      <strong>${costAlzHtml(craftRecipeExpectedCost(recipe))}</strong>
       <span></span>
     </div>
   `;
 
-  return renderEntrySection(dungeon, "craft", ENTRY_MODE_LABELS.craft, alzHtml(craftRecipeExpectedCost(recipe)), body);
+  return renderEntrySection(dungeon, "craft", ENTRY_MODE_LABELS.craft, costAlzHtml(craftRecipeExpectedCost(recipe)), body);
 }
 
 function renderBasicFarm() {
@@ -2147,13 +2798,12 @@ function renderBasicFarm() {
     row.className = "table-row farm-row";
     row.innerHTML = `
       <div class="item-name">
-        <span class="swatch ${swatchClass(line.category)}"></span>
-        <span title="${line.item}">${line.item}</span>
+        ${itemNameHtml(line.item, line.category)}
       </div>
       ${
         isBasic
-          ? `<input data-basic-index="${index}" data-basic-field="qtyPerRun" type="number" min="0" step="0.01" value="${line.qtyPerRun}" />`
-          : `<input data-drop-index="${index}" data-drop-field="qty" type="number" min="0" step="1" value="${line.qty}" />`
+          ? `<input data-basic-index="${index}" data-basic-field="qty" type="number" min="0" step="1" value="${farmLineQty(line, dungeon)}" />`
+          : `<input data-drop-index="${index}" data-drop-field="qty" type="number" min="0" step="1" value="${integerValue(line.qty)}" />`
       }
       ${
         isBasic
@@ -2179,14 +2829,7 @@ function renderBasicFarm() {
 function renderCashback() {
   const dungeon = currentDungeon();
   const runs = effectiveRuns(dungeon);
-  elements.cashbackList.innerHTML = `
-    <div class="cashback-row header">
-      <span>Meta</span>
-      <span>Jóia</span>
-      <span>Valor</span>
-      <span>Status</span>
-    </div>
-  `;
+  elements.cashbackList.innerHTML = "";
 
   if (!(dungeon.cashback || []).length) {
     elements.cashbackList.innerHTML += `<div class="empty-state">Esta DG não tem cashback cadastrado.</div>`;
@@ -2194,13 +2837,16 @@ function renderCashback() {
   }
 
   (dungeon.cashback || []).forEach((reward, index) => {
+    const available = runs >= reward.runs;
     const row = document.createElement("div");
-    row.className = `cashback-row ${runs >= reward.runs ? "available" : ""}`;
+    row.className = `cashback-row compact-cashback-row ${available ? "available" : "locked"}`;
+    const entriesLabel = integerValue(reward.entryQty) ? ` + ${formatNumber(reward.entryQty)} Entrada${integerValue(reward.entryQty) > 1 ? "s" : ""}` : "";
+    const rewardItem = normalizeJewelItem(reward.item);
+    const valueMode = activeEntryModes(dungeon)[0] || currentEntryMode(dungeon);
     row.innerHTML = `
-      <strong>${formatNumber(reward.runs)} DGs</strong>
-      <strong>${jewelColor(reward.item)}</strong>
-      <strong data-cashback-value="${index}">${alzHtml(jewelValue(reward.item))}</strong>
-      <span data-cashback-status="${index}">${runs >= reward.runs ? "Liberado" : `${formatNumber(reward.runs - runs)} DGs restantes`}</span>
+      <span>${formatNumber(reward.runs)} DGs</span>
+      <strong title="${rewardItem}${entriesLabel}" class="cashback-jewel-label">${jewelIconHtml(rewardItem)}<span>${rewardItem}${entriesLabel}</span></strong>
+      <strong data-cashback-value="${index}">${alzHtml(cashbackRewardValue(reward, dungeon, valueMode))}</strong>
     `;
     elements.cashbackList.appendChild(row);
   });
@@ -2212,6 +2858,7 @@ function renderCashbackConfig() {
     <div class="cashback-row cashback-config-row header">
       <span>Meta</span>
       <span>Jóia</span>
+      <span>Entrada</span>
       <span>Valor</span>
       <span>Qtd</span>
       <span></span>
@@ -2230,12 +2877,19 @@ function renderCashbackConfig() {
         <span>DGs</span>
         <input data-cashback-config-index="${index}" data-cashback-config-field="runs" type="number" min="1" step="1" value="${reward.runs}" />
       </label>
-      <select data-cashback-config-index="${index}" data-cashback-config-field="item" aria-label="Cor da jóia do cashback de ${reward.runs} DGs">
-        ${JEWEL_ITEMS.map(
-          (item) => `<option value="${item}" ${normalizeJewelItem(reward.item) === item ? "selected" : ""}>${jewelColor(item)}</option>`,
-        ).join("")}
-      </select>
-      <strong>${alzHtml(jewelValue(reward.item))}</strong>
+      <label class="jewel-select-field">
+        ${jewelIconHtml(reward.item)}
+        <select data-cashback-config-index="${index}" data-cashback-config-field="item" aria-label="Cor da jóia do cashback de ${reward.runs} DGs">
+          ${JEWEL_ITEMS.map(
+            (item) => `<option value="${item}" ${normalizeJewelItem(reward.item) === item ? "selected" : ""}>${item}</option>`,
+          ).join("")}
+        </select>
+      </label>
+      <label class="compact-field">
+        <span>Entr.</span>
+        <input data-cashback-config-index="${index}" data-cashback-config-field="entryQty" type="number" min="0" step="1" value="${integerValue(reward.entryQty)}" />
+      </label>
+      <strong>${alzHtml(cashbackRewardValue(reward, dungeon, activeEntryModes(dungeon)[0] || currentEntryMode(dungeon)))}</strong>
       <span>1 jóia</span>
       <button class="remove-button" data-remove-cashback-index="${index}" type="button" aria-label="Remover cashback de ${reward.runs} DGs">${iconSvg("x")}</button>
     `;
@@ -2252,6 +2906,327 @@ function renderCashbackConfig() {
   `;
 }
 
+function renderPlanForm() {
+  if (!elements.planDungeonSelect) return;
+  const selectedId = elements.planDungeonSelect.value || app.ui.selectedDungeon || app.dungeons[0]?.id;
+  elements.planDungeonSelect.innerHTML = app.dungeons
+    .map((dungeon) => `<option value="${dungeon.id}" ${selectedId === dungeon.id ? "selected" : ""}>${dungeon.name}</option>`)
+    .join("");
+
+  const dungeon = app.dungeons.find((item) => item.id === elements.planDungeonSelect.value) || currentDungeon();
+  const modes = availableEntryModes(dungeon);
+  const selectedMode = elements.planEntryModeSelect.value;
+  elements.planEntryModeSelect.innerHTML = modes
+    .map((mode) => `<option value="${mode}" ${selectedMode === mode ? "selected" : ""}>${ENTRY_MODE_LABELS[mode]}</option>`)
+    .join("");
+  elements.planEntryModeSelect.value = modes.includes(selectedMode) ? selectedMode : defaultEntryMode(dungeon);
+
+  if (!elements.planRunsInput.value) {
+    elements.planRunsInput.value = baseRunLimit(dungeon);
+  }
+}
+
+function renderPlanning() {
+  if (!elements.planItemList) return;
+  renderPlanForm();
+
+  const totals = planItems().map(planItemTotals);
+  elements.planItemList.innerHTML = "";
+
+  if (!totals.length) {
+    elements.planItemList.innerHTML = `<div class="empty-state">Nenhuma DG no planejamento ainda.</div>`;
+  }
+
+  totals.forEach((item, index) => {
+    const row = document.createElement("div");
+    row.className = "planning-row";
+    row.innerHTML = `
+      <div>
+        <strong title="${item.dungeon.name}">${item.dungeon.name}</strong>
+        <small>${item.runs} DGs • ${ENTRY_MODE_LABELS[item.entryMode]} • ${item.days.map((day) => WEEK_DAYS.find((weekDay) => weekDay.id === day)?.short).filter(Boolean).join(", ")}</small>
+      </div>
+      <span>${formatNumber(item.minutes)} min</span>
+      <strong>${costAlzHtml(item.cost)}</strong>
+      <strong>${alzHtml(item.retorno)}</strong>
+      <strong>${alzHtml(item.lucro)}</strong>
+      <button class="remove-button" data-remove-plan-item="${index}" type="button" aria-label="Remover ${item.dungeon.name} do planejamento">${iconSvg("x")}</button>
+    `;
+    elements.planItemList.appendChild(row);
+  });
+
+  elements.planDayList.innerHTML = WEEK_DAYS.map((day) => {
+    const dayTotals = planDayTotals(day.id);
+    return `
+      <div class="planning-day-row ${dayTotals.count ? "" : "empty"}">
+        <strong>${day.name}</strong>
+        <span>${dayTotals.count ? `${dayTotals.count} plano${dayTotals.count > 1 ? "s" : ""}` : "Livre"}</span>
+        <span>${formatNumber(dayTotals.minutes)} min</span>
+        <strong>${costAlzHtml(dayTotals.cost)}</strong>
+        <strong>${alzHtml(dayTotals.retorno)}</strong>
+        <strong>${alzHtml(dayTotals.lucro)}</strong>
+      </div>
+    `;
+  }).join("");
+
+  const weekTotals = WEEK_DAYS.reduce(
+    (sum, day) => {
+      const dayTotals = planDayTotals(day.id);
+      sum.cost += dayTotals.cost;
+      sum.retorno += dayTotals.retorno;
+      sum.lucro += dayTotals.lucro;
+      sum.minutes += dayTotals.minutes;
+      return sum;
+    },
+    { cost: 0, retorno: 0, lucro: 0, minutes: 0 },
+  );
+
+  applyCostDisplay(elements.planWeekCost, weekTotals.cost);
+  applyAlzDisplay(elements.planWeekReturn, weekTotals.retorno);
+  applyAlzDisplay(elements.planWeekProfit, weekTotals.lucro);
+  elements.planWeekTime.textContent = `${formatNumber(weekTotals.minutes)} min`;
+}
+
+function renderDailyForm() {
+  if (!elements.logDungeonSelect) return;
+
+  if (!elements.logDateInput.value) elements.logDateInput.value = todayIso();
+
+  const selectedId = elements.logDungeonSelect.value || app.ui.selectedDungeon || app.dungeons[0]?.id;
+  elements.logDungeonSelect.innerHTML = app.dungeons
+    .map((dungeon) => `<option value="${dungeon.id}" ${selectedId === dungeon.id ? "selected" : ""}>${dungeon.name}</option>`)
+    .join("");
+
+  const dungeon = selectedLogDungeon();
+  const modes = availableEntryModes(dungeon);
+  const selectedMode = elements.logEntryModeSelect.value;
+  elements.logEntryModeSelect.innerHTML = modes
+    .map((mode) => `<option value="${mode}" ${selectedMode === mode ? "selected" : ""}>${ENTRY_MODE_LABELS[mode]}</option>`)
+    .join("");
+  elements.logEntryModeSelect.value = modes.includes(selectedMode) ? selectedMode : defaultEntryMode(dungeon);
+
+  if (!elements.logRunsInput.value) elements.logRunsInput.value = baseRunLimit(dungeon);
+  if (elements.logSellPcToggle.dataset.ready !== "true") {
+    elements.logSellPcToggle.checked = app.ui.sellPc;
+    elements.logSellPcToggle.dataset.ready = "true";
+  }
+}
+
+function renderDailyPreview() {
+  if (!elements.logPreviewCost) return;
+  const estimate = selectedLogEstimate();
+
+  applyCostDisplay(elements.logPreviewCost, estimate.cost);
+  applyAlzDisplay(elements.logPreviewReturn, estimate.retorno);
+  applyAlzDisplay(elements.logPreviewProfit, estimate.lucro);
+  elements.logPreviewTime.textContent = `${formatNumber(estimate.minutes)} min`;
+
+  elements.logPreviewBreakdown.innerHTML = `
+    <div class="formula-row">
+      <span>Farm líquido</span>
+      <strong>${alzHtml(estimate.farm)}</strong>
+    </div>
+    <div class="formula-row">
+      <span>Cashback</span>
+      <strong>${alzHtml(estimate.cashback)}</strong>
+    </div>
+    <div class="formula-row">
+      <span>PC líquido</span>
+      <strong>${alzHtml(estimate.pc)}</strong>
+    </div>
+    <div class="formula-row">
+      <span>Entrada + reset</span>
+      <strong>${costAlzHtml(estimate.cost)}</strong>
+    </div>
+  `;
+}
+
+function renderDailyFarmItems() {
+  if (!elements.logFarmList) return;
+  const items = dailyDraftItems();
+  elements.logFarmList.innerHTML = `
+    <div class="table-row header log-farm-row">
+      <span>Item</span>
+      <span>Qtd</span>
+      <span>Preço un.</span>
+      <span>Total líquido</span>
+      <span></span>
+    </div>
+  `;
+
+  if (!items.length) {
+    elements.logFarmList.innerHTML += `<div class="empty-state">Adicione os itens que realmente caíram neste farm.</div>`;
+    return;
+  }
+
+  items.forEach((item, index) => {
+    elements.logFarmList.innerHTML += `
+      <div class="table-row log-farm-row">
+        <div class="item-name">
+          ${itemNameHtml(item.item, item.category)}
+          <small>${escapeHtml(item.category)}</small>
+        </div>
+        <input data-log-item-index="${index}" data-log-item-field="qty" type="number" min="0" step="1" value="${integerValue(item.qty)}" />
+        <input data-log-item-index="${index}" data-log-item-field="price" data-money-input="true" type="text" inputmode="numeric" autocomplete="off" value="${formatAlzNumber(item.price)}" />
+        <strong data-log-item-total="${index}">${alzHtml(auctionNet(integerValue(item.qty) * moneyValue(item.price)))}</strong>
+        <button class="remove-button" data-remove-log-item-index="${index}" type="button" aria-label="Remover ${escapeHtml(item.item)}">${iconSvg("x")}</button>
+      </div>
+    `;
+  });
+}
+
+function renderDailyDropList() {
+  if (!elements.logDropList) return;
+  const candidates = logDropCandidates();
+
+  elements.logDropList.innerHTML = candidates.length
+    ? candidates
+        .map(
+          (candidate, index) => `
+            <div class="drop-row">
+              <div>
+                <strong class="inline-item-label" title="${escapeHtml(candidate.item)}">${inlineItemNameHtml(candidate.item, candidate.category)}</strong>
+                <small>${escapeHtml(candidate.category)}${candidate.price ? ` • ${alzHtml(candidate.price)}` : ""}</small>
+              </div>
+              <button class="icon-button" data-log-add-drop-index="${index}" type="button" title="Adicionar" aria-label="Adicionar ${escapeHtml(candidate.item)}">${iconSvg("plus")}</button>
+            </div>
+          `,
+        )
+        .join("")
+    : `<div class="empty-state">Todos os drops cadastrados desta DG já estão no registro.</div>`;
+}
+
+function renderFarmLogHistory() {
+  if (!elements.farmLogList) return;
+  const logs = sortedFarmLogs().slice(0, 12);
+  elements.farmLogList.innerHTML = logs.length
+    ? logs.map((log) => farmLogRowHtml(log)).join("")
+    : `<div class="empty-state">Nenhum farm registrado ainda.</div>`;
+}
+
+function renderDailyLog() {
+  if (!elements.logDungeonSelect) return;
+  renderDailyForm();
+  renderDailyFarmItems();
+  renderDailyDropList();
+  renderDailyPreview();
+  renderFarmLogHistory();
+}
+
+function saveFarmLogFromForm() {
+  const estimate = selectedLogEstimate();
+  farmLogs().push({
+    id: `log-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    date: elements.logDateInput.value || todayIso(),
+    dungeonId: estimate.dungeon.id,
+    dungeonName: estimate.dungeon.name,
+    runs: estimate.runs,
+    entryMode: estimate.entryMode,
+    sellPc: estimate.sellPc,
+    items: estimate.items,
+    notes: elements.logNotesInput.value.trim(),
+    cost: estimate.cost,
+    farm: estimate.farm,
+    cashback: estimate.cashback,
+    pc: estimate.pc,
+    retorno: estimate.retorno,
+    lucro: estimate.lucro,
+    minutes: estimate.minutes,
+    createdAt: new Date().toISOString(),
+  });
+  elements.logNotesInput.value = "";
+  resetDailyDraft(estimate.dungeon);
+  saveData();
+  renderDailyLog();
+  renderSummary();
+}
+
+function selectedSummaryMonth() {
+  if (!elements.summaryMonthInput) return currentMonthIso();
+  if (!elements.summaryMonthInput.value) elements.summaryMonthInput.value = currentMonthIso();
+  return elements.summaryMonthInput.value;
+}
+
+function renderSummaryChart(logs) {
+  if (!elements.summaryChart) return;
+  const groups = logsByDate(logs);
+  const rows = Object.keys(groups)
+    .sort()
+    .map((date) => ({ date, ...aggregateLogs(groups[date]) }));
+
+  if (!rows.length) {
+    elements.summaryChart.innerHTML = `<div class="empty-state">Sem registros para montar o gráfico deste mês.</div>`;
+    return;
+  }
+
+  const maxProfit = Math.max(1, ...rows.map((row) => Math.abs(row.lucro)));
+  elements.summaryChart.innerHTML = rows
+    .map((row) => {
+      const width = Math.max(4, Math.round((Math.abs(row.lucro) / maxProfit) * 100));
+      return `
+        <div class="summary-bar-row ${row.lucro < 0 ? "negative" : ""}">
+          <span>${dateLabel(row.date).slice(0, 5)}</span>
+          <div class="summary-bar-track">
+            <div class="summary-bar-fill" style="width: ${width}%"></div>
+          </div>
+          <strong>${alzHtml(row.lucro)}</strong>
+        </div>
+      `;
+    })
+    .join("");
+}
+
+function renderSummaryCalendar(month, logs) {
+  if (!elements.summaryCalendar) return;
+  const [year, monthNumber] = month.split("-").map(Number);
+  const daysInMonth = new Date(year, monthNumber, 0).getDate();
+  const firstWeekday = new Date(year, monthNumber - 1, 1).getDay();
+  const mondayOffset = (firstWeekday + 6) % 7;
+  const groups = logsByDate(logs);
+  const weekdayHeaders = WEEK_DAYS.map((day) => `<div class="calendar-weekday">${day.short}</div>`).join("");
+  const blanks = Array.from({ length: mondayOffset }, () => `<div class="calendar-cell empty"></div>`).join("");
+  const dayCells = Array.from({ length: daysInMonth }, (_, index) => {
+    const day = index + 1;
+    const date = `${month}-${String(day).padStart(2, "0")}`;
+    const dayLogs = groups[date] || [];
+    const totals = aggregateLogs(dayLogs);
+    return `
+      <div class="calendar-cell ${dayLogs.length ? "has-log" : ""} ${totals.lucro < 0 ? "negative" : ""}">
+        <span>${day}</span>
+        ${
+          dayLogs.length
+            ? `<strong>${alzHtml(totals.lucro)}</strong><small>${dayLogs.length} registro${dayLogs.length > 1 ? "s" : ""}</small>`
+            : `<small>Sem farm</small>`
+        }
+      </div>
+    `;
+  }).join("");
+
+  elements.summaryCalendar.innerHTML = weekdayHeaders + blanks + dayCells;
+}
+
+function renderSummaryLogList(logs) {
+  if (!elements.summaryLogList) return;
+  elements.summaryLogList.innerHTML = logs.length
+    ? logs.map((log) => farmLogRowHtml(log)).join("")
+    : `<div class="empty-state">Nenhum registro encontrado para este mês.</div>`;
+}
+
+function renderSummary() {
+  if (!elements.summaryMonthInput) return;
+  const month = selectedSummaryMonth();
+  const logs = sortedFarmLogs().filter((log) => log.date.startsWith(month));
+  const totals = aggregateLogs(logs);
+
+  applyCostDisplay(elements.summaryMonthCost, totals.cost);
+  applyAlzDisplay(elements.summaryMonthReturn, totals.retorno);
+  applyAlzDisplay(elements.summaryMonthProfit, totals.lucro);
+  elements.summaryMonthTime.textContent = `${formatNumber(totals.minutes)} min`;
+
+  renderSummaryChart(logs);
+  renderSummaryCalendar(month, logs);
+  renderSummaryLogList(logs);
+}
+
 function renderExtraDrops() {
   const dungeon = currentDungeon();
   const used = new Set(farmRecords(dungeon).map((record) => record.line.item));
@@ -2265,10 +3240,10 @@ function renderExtraDrops() {
       row.className = "drop-row";
       row.innerHTML = `
         <div>
-          <strong title="${item}">${item}</strong>
-          <small>${category}</small>
+          <strong class="inline-item-label" title="${escapeHtml(item)}">${inlineItemNameHtml(item, category)}</strong>
+          <small>${escapeHtml(category)}</small>
         </div>
-        <button class="icon-button" type="button" title="Adicionar" aria-label="Adicionar ${item}">${iconSvg("plus")}</button>
+        <button class="icon-button" type="button" title="Adicionar" aria-label="Adicionar ${escapeHtml(item)}">${iconSvg("plus")}</button>
       `;
       row.querySelector("button").addEventListener("click", () => {
         addDropToFarm(dungeon, index);
@@ -2292,6 +3267,7 @@ function renderSettings() {
       [
         "Protetor PC (100 PC)",
         "Card Cash Ouro (1000 Cash)",
+        MARKET_TAX_SETTING,
         "Material Graduado",
         DIMENSION_STONE_PACK_KEY,
         CRAFT_ITEM_PC_COST_KEY,
@@ -2312,6 +3288,9 @@ function renderSettings() {
               <div class="setting-row">
                 <strong>${key}</strong>
                 ${
+                  key === MARKET_TAX_SETTING
+                    ? `<input data-setting-key="${key}" type="number" min="0" max="100" step="0.1" value="${app.settings[key] ?? 4}" />`
+                    :
                   isMoneySettingKey(key)
                     ? `<input data-setting-key="${key}" data-money-input="true" type="text" inputmode="numeric" autocomplete="off" value="${formatAlzNumber(app.settings[key] || 0)}" />`
                     : `<input data-setting-key="${key}" type="number" min="0" step="1" value="${app.settings[key] || 0}" />`
@@ -2327,10 +3306,6 @@ function renderSettings() {
   const dungeon = currentDungeon();
   elements.dungeonSettings.innerHTML = `
     <div class="dg-setting">
-      <strong>Minutos por DG</strong>
-      <input data-dungeon-field="minutes" type="number" min="0" step="0.1" value="${dungeon.minutes}" />
-    </div>
-    <div class="dg-setting">
       <strong>Limite sem reset</strong>
       <input data-dungeon-field="baseRuns" type="number" min="1" step="1" value="${baseRunLimit(dungeon)}" />
     </div>
@@ -2344,44 +3319,96 @@ function renderSettings() {
 function renderDgConfig() {
   const dungeon = currentDungeon();
   elements.dgConfigTitle.textContent = dungeon.name;
+  if (elements.dgConfigEnabled) elements.dgConfigEnabled.checked = isDungeonEnabled(dungeon);
   elements.dgConfigPc.value = dungeon.pc;
   renderEntryConfig();
   renderCashbackConfig();
 }
 
-function renderRanking() {
-  const ranked = [...app.dungeons].sort((a, b) => rankingValue(b) - rankingValue(a));
-  elements.rankingTable.innerHTML = `
-    <div class="rank-row header">
-      <span>#</span>
-      <span>DG</span>
-      <span>Custo</span>
-      <span>Farm</span>
-      <span>Cashback</span>
-      <span>PC</span>
-      <span>Tempo</span>
-      <span>Resultado</span>
-    </div>
-  `;
+function renderFarmTime() {
+  if (!elements.farmTimeMinutes || !elements.farmTimeSeconds) return;
+  const parts = dungeonTimeParts(currentDungeon());
+  elements.farmTimeMinutes.value = parts.minutes;
+  elements.farmTimeSeconds.value = parts.seconds;
+}
 
-  ranked.forEach((dungeon, index) => {
-    const runs = rankingRuns(dungeon);
-    const resets = resetCount(dungeon, runs);
+function renderRanking() {
+  const mode = app.ui.rankMode === "rush" ? "rush" : "hour";
+  document.querySelectorAll(".rank-mode").forEach((button) => {
+    button.classList.toggle("active", button.dataset.rank === mode);
+  });
+  const ranked = enabledDungeons()
+    .flatMap((dungeon) => activeEntryModes(dungeon).map((entryMode) => ({ dungeon, entryMode })))
+    .sort((a, b) => rankingValue(b) - rankingValue(a));
+  elements.rankingTable.innerHTML =
+    mode === "hour"
+      ? `
+        <div class="rank-row header rank-row-hour">
+          <span>#</span>
+          <span>DG</span>
+          <span>Resultado/h</span>
+          <span>Farm/h</span>
+          <span>Cashback/h</span>
+          <span>PC/h</span>
+          <span>Entrada/h</span>
+        </div>
+      `
+      : `
+        <div class="rank-row header rank-row-rush">
+          <span>#</span>
+          <span>DG</span>
+          <span>Tempo</span>
+          <span>Resultado</span>
+          <span>Farm</span>
+          <span>Cashback</span>
+          <span>PC</span>
+          <span>Entrada</span>
+        </div>
+      `;
+
+  if (!ranked.length) {
+    elements.rankingTable.innerHTML += `<div class="empty-state">Nenhuma DG ativa para ranquear.</div>`;
+    return;
+  }
+
+  ranked.forEach(({ dungeon, entryMode }, index) => {
+    const components = rankingComponents(dungeon, entryMode);
+    const resets = resetCount(dungeon, components.runs);
     const row = document.createElement("div");
-    row.className = "rank-row";
-    row.innerHTML = `
-      <span class="rank-position">${index + 1}</span>
-      <div>
-        <strong title="${dungeon.name}">${dungeon.name}</strong>
-        <small>${formatNumber(runs)} DGs${resets ? ` • ${formatNumber(resets)} reset` : ""}</small>
-      </div>
-      <strong>${alzHtml(entryCost(dungeon, runs))}</strong>
-      <strong>${alzHtml(farmReturn(dungeon, runs))}</strong>
-      <strong>${alzHtml(cashbackReturn(dungeon, runs))}</strong>
-      <strong>${alzHtml(pcReturn(dungeon, runs))}</strong>
-      <span>${formatNumber(dungeon.minutes * runs)} min</span>
-      <strong>${alzHtml(rankingValue(dungeon))}</strong>
-    `;
+    row.className = `rank-row rank-row-${mode} ${isFavoriteDungeon(dungeon.id) ? "favorite" : ""}`;
+    row.innerHTML =
+      mode === "hour"
+        ? `
+          <div class="rank-index-cell">
+            ${favoriteButtonHtml(dungeon, true)}
+            <span class="rank-position">${index + 1}</span>
+          </div>
+          <div>
+            <strong title="${dungeon.name}">${dungeon.name}</strong>
+            <small>${ENTRY_MODE_LABELS[entryMode]} • ${formatNumber(components.runs)} DGs no ciclo • ${formatNumber(components.minutes)} min${resets ? ` • ${formatNumber(resets)} reset` : ""}</small>
+          </div>
+          <strong>${alzHtml(components.result)}</strong>
+          <strong>${alzHtml(components.farm)}</strong>
+          <strong>${alzHtml(components.cashback)}</strong>
+          <strong>${alzHtml(components.pc)}</strong>
+          <strong>${costAlzHtml(components.cost)}</strong>
+        `
+        : `
+          <div class="rank-index-cell">
+            ${favoriteButtonHtml(dungeon, true)}
+            <span class="rank-position">${index + 1}</span>
+          </div>
+          <div>
+            <strong title="${dungeon.name}">${dungeon.name}</strong>
+            <small>${ENTRY_MODE_LABELS[entryMode]} • ${formatNumber(components.runs)} DGs${resets ? ` • ${formatNumber(resets)} reset` : ""}</small>
+          </div>
+          <span>${formatNumber(components.minutes)} min</span>
+          <strong>${alzHtml(components.result)}</strong>
+          <strong>${alzHtml(components.farm)}</strong>
+          <strong>${alzHtml(components.cashback)}</strong>
+          <strong>${alzHtml(components.pc)}</strong>
+          <strong>${costAlzHtml(components.cost)}</strong>
+        `;
     elements.rankingTable.appendChild(row);
   });
 }
@@ -2390,56 +3417,127 @@ function rankingRuns(dungeon) {
   if (app.ui.rankMode === "rush") {
     return Math.max(baseRunLimit(dungeon), ...(dungeon.cashback || []).map((reward) => Number(reward.runs) || 0));
   }
-  return baseRunLimit(dungeon);
+  return baseRunLimit(dungeon) + (dungeon.canReset ? Math.max(0, integerValue(dungeon.resetRuns) || baseRunLimit(dungeon)) : 0);
 }
 
-function rankingValue(dungeon) {
+function rankingComponents(dungeon, entryMode = activeEntryModes(dungeon)[0] || currentEntryMode(dungeon)) {
   const runs = rankingRuns(dungeon);
-  const baseProfit = farmReturn(dungeon, runs) + cashbackReturn(dungeon, runs) + pcReturn(dungeon, runs) - entryCost(dungeon, runs);
-  if (app.ui.rankMode === "hour") {
-    return baseProfit / Math.max((dungeon.minutes * runs) / 60, 0.1);
+  const minutes = dungeon.minutes * runs;
+  const cost = entryCostForPlan(dungeon, entryMode, runs);
+  const farm = farmReturn(dungeon, runs);
+  const cashback = cashbackReturn(dungeon, runs, entryMode);
+  const pc = pcReturn(dungeon, runs);
+  const result = farm + cashback + pc - cost;
+
+  if (app.ui.rankMode !== "rush") {
+    const hours = Math.max(minutes / 60, 0.1);
+    return {
+      runs,
+      minutes,
+      cost: cost / hours,
+      farm: farm / hours,
+      cashback: cashback / hours,
+      pc: pc / hours,
+      result: result / hours,
+    };
   }
-  if (app.ui.rankMode === "rush") {
-    return cashbackReturn(dungeon, runs) + pcReturn(dungeon, runs) - entryCost(dungeon, runs);
+
+  return { runs, minutes, cost, farm, cashback, pc, result };
+}
+
+function rankingValue(option) {
+  const dungeon = option.dungeon || option;
+  const entryMode = option.entryMode || activeEntryModes(dungeon)[0] || currentEntryMode(dungeon);
+  return rankingComponents(dungeon, entryMode).result;
+}
+
+function resetMoneyClasses(node) {
+  node.classList.remove(
+    "alz-value",
+    "cost-value",
+    "alz-tier-10k",
+    "alz-tier-100k",
+    "alz-tier-1m",
+    "alz-tier-10m",
+    "alz-tier-100m",
+    "alz-tier-1b",
+    "alz-tier-10b",
+    "alz-tier-100b",
+    "metric-multi-value",
+  );
+}
+
+function renderMetricModeValues(node, values, isCost = false) {
+  if (!values.length) {
+    if (isCost) applyCostDisplay(node, 0);
+    else applyAlzDisplay(node, 0);
+    return;
   }
-  return baseProfit;
+
+  if (values.length === 1) {
+    if (isCost) applyCostDisplay(node, values[0].value);
+    else applyAlzDisplay(node, values[0].value);
+    return;
+  }
+
+  resetMoneyClasses(node);
+  node.classList.add("metric-multi-value");
+  node.innerHTML = values
+    .map(
+      ({ mode, value }) => `
+        <span>
+          <em>${ENTRY_MODE_SHORT_LABELS[mode] || ENTRY_MODE_LABELS[mode] || mode}</em>
+          ${isCost ? costAlzHtml(value) : alzHtml(value)}
+        </span>
+      `,
+    )
+    .join("");
 }
 
 function refreshNumbers() {
   const dungeon = currentDungeon();
   const runs = effectiveRuns(dungeon);
-  const entry = entryCost(dungeon, runs);
-  const farm = farmReturn(dungeon, runs);
-  const cashback = cashbackReturn(dungeon, runs);
-  const pc = pcReturn(dungeon, runs);
+  const modes = activeEntryModes(dungeon);
+  const estimates = modes.map((entryMode) => ({ mode: entryMode, ...farmEstimate(dungeon, runs, entryMode, app.ui.sellPc) }));
+  const primaryEstimate = estimates[0] || { mode: currentEntryMode(dungeon), ...farmEstimate(dungeon, runs, currentEntryMode(dungeon), app.ui.sellPc) };
+  const farm = primaryEstimate.farm;
+  const pc = primaryEstimate.pc;
   const resets = resetCount(dungeon, runs);
   const resetGems = resetGemQty(dungeon) * resets;
   const resetTotal = resetCost(dungeon, runs);
 
-  elements.totalRuns.textContent = formatNumber(runs);
   elements.resetCostDisplay.innerHTML = resets
-    ? `${formatNumber(resets)} reset • ${formatNumber(resetGems)} gemas • ${alzHtml(resetTotal)}`
+    ? `${formatNumber(resets)} reset • ${formatNumber(resetGems)} gemas • ${costAlzHtml(resetTotal)}`
     : "Sem reset";
-  applyAlzDisplay(elements.metricEntryCost, entry);
+  renderMetricModeValues(
+    elements.metricEntryCost,
+    estimates.map((estimate) => ({ mode: estimate.mode, value: estimate.cost })),
+    true,
+  );
   applyAlzDisplay(elements.metricBasic, farm);
-  applyAlzDisplay(elements.metricCashback, cashback);
+  renderMetricModeValues(
+    elements.metricCashback,
+    estimates.map((estimate) => ({ mode: estimate.mode, value: estimate.cashback })),
+  );
   applyAlzDisplay(elements.metricPc, pc);
-  applyAlzDisplay(elements.metricProfit, farm + cashback + pc - entry);
+  renderMetricModeValues(
+    elements.metricProfit,
+    estimates.map((estimate) => ({ mode: estimate.mode, value: estimate.lucro })),
+  );
 
-  elements.pcStatus.textContent = app.ui.sellPc ? "Ativo" : "Inativo";
   elements.pcPerRunDisplay.textContent = formatNumber(dungeon.pc);
   applyAlzDisplay(elements.pcUnitValue, pcUnitProfit());
   elements.pcTotalCount.textContent = formatNumber(dungeon.pc * runs);
   applyAlzDisplay(elements.pcTotalValue, pc);
 
   applyAlzDisplay(elements.gemUnitValue, gemUnitValue());
-  applyAlzDisplay(elements.protectorCost, protectorCost());
-  applyAlzDisplay(elements.pcProfit100, (app.settings["Protetor PC (100 PC)"] || 0) - protectorCost());
+  applyCostDisplay(elements.protectorCost, protectorCost());
+  applyAlzDisplay(elements.pcProfit100, pcProfit100());
   applyAlzDisplay(elements.pcProfit1, pcUnitProfit());
 
   document.querySelectorAll("[data-entry-total]").forEach((node) => {
     const line = dungeon.entries[Number(node.dataset.entryTotal)];
-    applyAlzDisplay(node, entryLineCostPerRun(line));
+    applyCostDisplay(node, entryLineCostPerRun(line));
   });
 
   document.querySelectorAll("[data-farm-total-source]").forEach((node) => {
@@ -2452,17 +3550,15 @@ function refreshNumbers() {
 
   document.querySelectorAll("[data-cashback-value]").forEach((node) => {
     const reward = dungeon.cashback[Number(node.dataset.cashbackValue)];
-    applyAlzDisplay(node, jewelValue(reward.item));
-  });
-
-  document.querySelectorAll("[data-cashback-status]").forEach((node) => {
-    const reward = dungeon.cashback[Number(node.dataset.cashbackStatus)];
-    node.textContent = runs >= reward.runs ? "Liberado" : `${formatNumber(reward.runs - runs)} DGs restantes`;
+    applyAlzDisplay(node, cashbackRewardValue(reward, dungeon, activeEntryModes(dungeon)[0] || currentEntryMode(dungeon)));
   });
 
 }
 
 function render() {
+  if (app.ui.activeView === "dungeon" && !isDungeonEnabled(currentDungeon())) {
+    app.ui.selectedDungeon = selectableDungeons()[0]?.id || app.dungeons[0]?.id;
+  }
   const dungeon = currentDungeon();
   elements.dungeonTitle.textContent = dungeon.name;
   elements.runsInput.value = app.ui.runs || baseRunLimit(dungeon);
@@ -2477,17 +3573,18 @@ function render() {
   renderExtraDrops();
   renderSettings();
   renderDgConfig();
+  renderFarmTime();
+  renderPlanning();
+  renderDailyLog();
+  renderSummary();
   refreshNumbers();
   renderRanking();
 }
 
 document.querySelectorAll(".nav-button").forEach((button) => {
   button.addEventListener("click", () => {
-    document.querySelectorAll(".nav-button").forEach((navButton) => navButton.classList.remove("active"));
-    button.classList.add("active");
-    app.ui.activeView = button.dataset.view;
-    saveData();
-    renderView();
+    setActiveView(button.dataset.view);
+    render();
   });
 });
 
@@ -2502,6 +3599,71 @@ document.querySelectorAll(".rank-mode").forEach((button) => {
 });
 
 elements.dungeonSearch.addEventListener("input", renderDungeonButtons);
+
+elements.planDungeonSelect?.addEventListener("change", () => {
+  const dungeon = app.dungeons.find((item) => item.id === elements.planDungeonSelect.value);
+  if (dungeon) {
+    elements.planRunsInput.value = baseRunLimit(dungeon);
+  }
+  renderPlanForm();
+});
+
+elements.addPlanItem?.addEventListener("click", () => {
+  const dungeon = app.dungeons.find((item) => item.id === elements.planDungeonSelect.value) || currentDungeon();
+  const selectedDays = [...document.querySelectorAll("[data-plan-day]:checked")].map((input) => integerValue(input.dataset.planDay));
+  planItems().push(
+    normalizedPlanItem({
+      dungeonId: dungeon.id,
+      entryMode: elements.planEntryModeSelect.value,
+      runs: elements.planRunsInput.value,
+      days: selectedDays.length ? selectedDays : [1, 2, 3, 4, 5],
+    }),
+  );
+  saveData();
+  renderPlanning();
+});
+
+elements.logDungeonSelect?.addEventListener("change", () => {
+  const dungeon = selectedLogDungeon();
+  app.ui.selectedDungeon = dungeon.id;
+  resetDailyDraft(dungeon);
+  elements.logRunsInput.value = baseRunLimit(dungeon);
+  saveData();
+  renderDailyForm();
+  renderDailyFarmItems();
+  renderDailyDropList();
+  renderDailyPreview();
+});
+
+elements.logEntryModeSelect?.addEventListener("change", renderDailyPreview);
+elements.logRunsInput?.addEventListener("input", renderDailyPreview);
+elements.logSellPcToggle?.addEventListener("change", renderDailyPreview);
+elements.loadStandardFarm?.addEventListener("click", () => {
+  loadStandardFarmToDraft();
+  saveData();
+  renderDailyLog();
+});
+elements.clearLogFarm?.addEventListener("click", () => {
+  resetDailyDraft();
+  saveData();
+  renderDailyLog();
+});
+elements.addManualLogItem?.addEventListener("click", () => {
+  const item = elements.logManualItem.value.trim();
+  if (!item) return;
+  addLogItem({
+    item,
+    category: "Manual",
+    qty: 1,
+    price: moneyValue(elements.logManualPrice.value),
+  });
+  elements.logManualItem.value = "";
+  elements.logManualPrice.value = "";
+  saveData();
+  renderDailyLog();
+});
+elements.saveFarmLog?.addEventListener("click", saveFarmLogFromForm);
+elements.summaryMonthInput?.addEventListener("change", renderSummary);
 
 elements.runsInput.addEventListener("input", (event) => {
   app.ui.runs = Math.max(1, Number(event.target.value || 1));
@@ -2518,7 +3680,27 @@ elements.sellPcToggle.addEventListener("change", (event) => {
   renderRanking();
 });
 
-elements.entryModeSelect.addEventListener("change", (event) => {
+function handleFarmTimeInput() {
+  setDungeonTimeFromParts(currentDungeon(), elements.farmTimeMinutes.value, elements.farmTimeSeconds.value);
+  saveData();
+  renderPlanning();
+  renderDailyPreview();
+  renderSummary();
+  refreshNumbers();
+  renderRanking();
+}
+
+elements.farmTimeMinutes?.addEventListener("input", handleFarmTimeInput);
+elements.farmTimeSeconds?.addEventListener("input", handleFarmTimeInput);
+
+elements.dgConfigEnabled?.addEventListener("change", (event) => {
+  currentDungeon().enabled = event.target.checked;
+  saveData();
+  renderDungeonButtons();
+  renderRanking();
+});
+
+elements.entryModeSelect?.addEventListener("change", (event) => {
   app.ui.entryModes[currentDungeon().id] = event.target.value;
   saveData();
   renderEntries();
@@ -2553,11 +3735,19 @@ elements.settingsMenuOptions.querySelectorAll("button").forEach((button) => {
 
 document.addEventListener("click", (event) => {
   const target = event.target.closest?.(
-    "[data-run-step], [data-entry-section-toggle], [data-add-npc-item], [data-remove-entry-index], [data-add-cashback], [data-remove-cashback-index]",
+    "[data-favorite-dungeon], [data-run-step], [data-entry-section-toggle], [data-add-npc-item], [data-remove-entry-index], [data-add-cashback], [data-remove-cashback-index], [data-remove-plan-item], [data-remove-farm-log], [data-log-add-drop-index], [data-remove-log-item-index]",
   );
   if (!target) return;
 
   const dungeon = currentDungeon();
+
+  if (target.dataset.favoriteDungeon) {
+    toggleFavoriteDungeon(target.dataset.favoriteDungeon);
+    saveData();
+    renderDungeonButtons();
+    renderRanking();
+    return;
+  }
 
   if (target.dataset.runStep !== undefined) {
     app.ui.runs = Math.max(1, effectiveRuns(dungeon) + Number(target.dataset.runStep));
@@ -2598,6 +3788,7 @@ document.addEventListener("click", (event) => {
     dungeon.cashback.push({
       runs: nextRuns === 15 && !dungeon.cashback.length ? 15 : nextRuns + 1,
       item: JEWEL_ITEMS[0],
+      entryQty: 0,
       category: "Jóia",
     });
     dungeon.cashback = normalizeCashbackRewards(dungeon.cashback);
@@ -2616,6 +3807,37 @@ document.addEventListener("click", (event) => {
     renderCashbackConfig();
     refreshNumbers();
     renderRanking();
+    return;
+  }
+
+  if (target.dataset.removePlanItem !== undefined) {
+    planItems().splice(Number(target.dataset.removePlanItem), 1);
+    saveData();
+    renderPlanning();
+    return;
+  }
+
+  if (target.dataset.logAddDropIndex !== undefined) {
+    const candidate = logDropCandidates()[Number(target.dataset.logAddDropIndex)];
+    if (candidate?.record) addLogItem(logItemFromFarmRecord(candidate.record, selectedLogDungeon(), selectedLogRuns()));
+    if (candidate?.candidate) addLogItem(logItemFromDropCandidate(candidate.candidate));
+    saveData();
+    renderDailyLog();
+    return;
+  }
+
+  if (target.dataset.removeLogItemIndex !== undefined) {
+    dailyDraftItems().splice(Number(target.dataset.removeLogItemIndex), 1);
+    saveData();
+    renderDailyLog();
+    return;
+  }
+
+  if (target.dataset.removeFarmLog !== undefined) {
+    app.ui.farmLogs = farmLogs().filter((log) => normalizedFarmLog(log).id !== target.dataset.removeFarmLog);
+    saveData();
+    renderDailyLog();
+    renderSummary();
   }
 });
 
@@ -2629,9 +3851,26 @@ document.addEventListener("change", (event) => {
     const dungeon = currentDungeon();
     dungeon.gemEntryEnabled = target.checked;
     ensureGemEntryLine(dungeon);
+    if (target.checked) {
+      setEntryModeActive(dungeon, "gems", true);
+    } else {
+      normalizeActiveEntryModes(dungeon);
+    }
     ensureAvailableEntryMode(dungeon);
     saveData();
     render();
+    return;
+  }
+
+  if (target.dataset.entryModeToggle !== undefined) {
+    const dungeon = currentDungeon();
+    const changed = setEntryModeActive(dungeon, target.dataset.entryModeToggle, target.checked);
+    if (!changed) target.checked = true;
+    saveData();
+    renderEntries();
+    renderCashback();
+    refreshNumbers();
+    renderRanking();
     return;
   }
 
@@ -2655,9 +3894,14 @@ elements.resetLocalData.addEventListener("click", () => {
     selectedDungeon: "lago",
     runs: 30,
     sellPc: true,
-    rankMode: "profit",
-    activeView: "dungeon",
+    rankMode: "hour",
+    activeView: "ranking",
+    favoriteDungeons: [],
+    farmPlan: [],
+    farmLogs: [],
+    dailyDraft: null,
     entryModes: {},
+    activeEntryModes: {},
     entryConfigOpen: {},
     countedDrops: {},
   };
@@ -2669,13 +3913,25 @@ document.addEventListener("input", (event) => {
   const target = event.target;
   const dungeon = currentDungeon();
 
+  if (target.dataset.logItemIndex !== undefined) {
+    const item = dailyDraftItems()[Number(target.dataset.logItemIndex)];
+    if (!item) return;
+    if (target.dataset.logItemField === "qty") item.qty = integerValue(target.value);
+    if (target.dataset.logItemField === "price") item.price = moneyValue(target.value);
+    const totalNode = document.querySelector(`[data-log-item-total="${target.dataset.logItemIndex}"]`);
+    if (totalNode) applyAlzDisplay(totalNode, auctionNet(integerValue(item.qty) * moneyValue(item.price)));
+    saveData();
+    renderDailyPreview();
+    return;
+  }
+
   if (target.dataset.entryIndex !== undefined) {
     const line = dungeon.entries[Number(target.dataset.entryIndex)];
     if (target.dataset.entryField === "alz" && isAlzEntry(line)) {
       line.qty = moneyValue(target.value);
     }
     if (target.dataset.entryField === "qty" && canEditEntryQty(line)) {
-      line.qty = numberValue(target.value);
+      line.qty = integerValue(target.value);
     }
     if (target.dataset.entryField === "price" && canEditEntryPrice(line)) {
       line.price = moneyValue(target.value);
@@ -2690,7 +3946,7 @@ document.addEventListener("input", (event) => {
   if (target.dataset.gemEntryIndex !== undefined) {
     const line = dungeon.entries[Number(target.dataset.gemEntryIndex)];
     if (line && inferEntryMode(line) === "gems") {
-      line.qty = numberValue(target.value);
+      line.qty = integerValue(target.value);
       saveData();
       render();
     }
@@ -2702,8 +3958,12 @@ document.addEventListener("input", (event) => {
     if (target.dataset.cashbackConfigField === "runs") {
       reward.runs = Math.max(1, Math.round(numberValue(target.value) || 1));
     }
+    if (target.dataset.cashbackConfigField === "entryQty") {
+      reward.entryQty = integerValue(target.value);
+    }
     saveData();
     renderCashback();
+    renderCashbackConfig();
     refreshNumbers();
     renderRanking();
     return;
@@ -2711,7 +3971,7 @@ document.addEventListener("input", (event) => {
 
   if (target.dataset.basicIndex !== undefined) {
     const line = dungeon.basic[Number(target.dataset.basicIndex)];
-    if (target.dataset.basicField === "qtyPerRun") line.qtyPerRun = numberValue(target.value);
+    if (target.dataset.basicField === "qty") line.qty = integerValue(target.value);
     if (target.dataset.basicField === "price" && canEditBasicPrice(line)) {
       line.price = moneyValue(target.value);
     }
@@ -2723,7 +3983,7 @@ document.addEventListener("input", (event) => {
 
   if (target.dataset.dropIndex !== undefined) {
     const line = countedDrops(dungeon)[Number(target.dataset.dropIndex)];
-    line[target.dataset.dropField] = target.dataset.dropField === "price" ? moneyValue(target.value) : numberValue(target.value);
+    line[target.dataset.dropField] = target.dataset.dropField === "price" ? moneyValue(target.value) : integerValue(target.value);
     saveData();
     refreshNumbers();
     renderRanking();
@@ -2743,7 +4003,7 @@ document.addEventListener("input", (event) => {
 
   if (target.dataset.dungeonField) {
     const field = target.dataset.dungeonField;
-    dungeon[field] = numberValue(target.value);
+    dungeon[field] = field === "minutes" ? numberValue(target.value) : integerValue(target.value);
     if (field === "baseRuns") {
       dungeon.baseRuns = baseRunLimit(dungeon);
       app.ui.runs = dungeon.baseRuns;
