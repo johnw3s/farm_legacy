@@ -1,4 +1,5 @@
 const STORAGE_KEY = "farmLegacy.web.v3";
+const DATA_VERSION = 5;
 
 const alzFormat = new Intl.NumberFormat("pt-BR", {
   maximumFractionDigits: 0,
@@ -32,6 +33,9 @@ const defaultSettings = {
   "Núcleo Arcano (Baixo)": 38000,
   "Protetor PC (100 PC)": 11000000,
   "Card Cash Ouro (1000 Cash)": 77000000,
+  "Material Graduado": 0,
+  "Pedra Bruta da Dimensão (10 un.)": 1000000,
+  "PC por item de craft": 2,
   "Alz base do Protetor PC": 3000000,
   "Quantidade de Núcleo de Aprimoramento (Altíssimo) no Protetor PC": 2,
   "Quantidade de Núcleo de Aprimoramento (Alto) no Protetor PC": 3,
@@ -47,8 +51,90 @@ const jewelPrices = {
   "Jóia Enfraquecida Branca": 80000000,
 };
 
-const CASHBACK_THRESHOLDS = [15, 28, 58];
 const JEWEL_ITEMS = Object.keys(jewelPrices);
+const DEFAULT_RESET_GEMS = 25;
+
+const DX_PREMIUM_IDS = new Set(["catacumba-premium", "caverna-premium", "morada-premium", "locomotiva-premium"]);
+const DX_DIFICIL_IDS = new Set(["catacumba-dificil", "caverna-dificil", "morada-dificil", "locomotiva-dificil"]);
+const VALE_LIMIT_IDS = new Set(["vale-dificil", "vale-desperto"]);
+
+const cashbackTemplates = {
+  torre2: [[28, "Jóia Enfraquecida Laranja"]],
+  templo1: [[28, "Jóia Enfraquecida Amarela"]],
+  castelo: [
+    [15, "Jóia Enfraquecida Laranja"],
+    [28, "Jóia Enfraquecida Laranja"],
+  ],
+  salao: [[15, "Jóia Enfraquecida Laranja"]],
+  siena1: [
+    [15, "Jóia Enfraquecida Vermelha"],
+    [28, "Jóia Enfraquecida Laranja"],
+  ],
+  ilha: [
+    [15, "Jóia Enfraquecida Vermelha"],
+    [28, "Jóia Enfraquecida Laranja"],
+  ],
+  siena2: [
+    [15, "Jóia Enfraquecida Vermelha"],
+    [28, "Jóia Enfraquecida Laranja"],
+  ],
+  templo2: [
+    [15, "Jóia Enfraquecida Laranja"],
+    [28, "Jóia Enfraquecida Amarela"],
+  ],
+  entreposto: [
+    [15, "Jóia Enfraquecida Laranja"],
+    [28, "Jóia Enfraquecida Amarela"],
+  ],
+  pandemonium: [
+    [15, "Jóia Enfraquecida Amarela"],
+    [28, "Jóia Enfraquecida Verde"],
+  ],
+  torre3p2: [
+    [15, "Jóia Enfraquecida Verde"],
+    [28, "Jóia Enfraquecida Verde"],
+  ],
+  "ilha-desperta": [
+    [15, "Jóia Enfraquecida Verde"],
+    [28, "Jóia Enfraquecida Verde"],
+  ],
+  "templo2-desperto": [
+    [15, "Jóia Enfraquecida Azul"],
+    [28, "Jóia Enfraquecida Violeta"],
+    [58, "Jóia Enfraquecida Branca"],
+  ],
+  acheron: [
+    [15, "Jóia Enfraquecida Azul"],
+    [28, "Jóia Enfraquecida Azul"],
+    [58, "Jóia Enfraquecida Violeta"],
+  ],
+  "castelo-apocrifos": [
+    [15, "Jóia Enfraquecida Azul"],
+    [28, "Jóia Enfraquecida Violeta"],
+    [58, "Jóia Enfraquecida Branca"],
+  ],
+  torre3: [
+    [15, "Jóia Enfraquecida Azul"],
+    [28, "Jóia Enfraquecida Violeta"],
+    [50, "Jóia Enfraquecida Branca"],
+  ],
+  "catacumba-premium": [
+    [10, "Jóia Enfraquecida Laranja"],
+    [14, "Jóia Enfraquecida Amarela"],
+  ],
+  "caverna-premium": [
+    [10, "Jóia Enfraquecida Laranja"],
+    [14, "Jóia Enfraquecida Amarela"],
+  ],
+  "morada-premium": [
+    [10, "Jóia Enfraquecida Laranja"],
+    [14, "Jóia Enfraquecida Amarela"],
+  ],
+  "locomotiva-premium": [
+    [10, "Jóia Enfraquecida Laranja"],
+    [14, "Jóia Enfraquecida Amarela"],
+  ],
+};
 
 const ENTRY_MODE_LABELS = {
   gems: "Gemas Arcanas",
@@ -56,9 +142,243 @@ const ENTRY_MODE_LABELS = {
   npc: "NPC (Yul)",
 };
 
+const DIMENSION_STONE_PACK_KEY = "Pedra Bruta da Dimensão (10 un.)";
+const CRAFT_ITEM_PC_COST_KEY = "PC por item de craft";
+
+const craftRecipes = {
+  lago: { successRate: 0.9, item: "Coral Ilusório", itemQty: 1, stoneQty: 1 },
+  estacao: { successRate: 0.9, item: "Cabeça Máquina", itemQty: 1, stoneQty: 1 },
+  torre1: { successRate: 0.85, item: "Crânio Astral", itemQty: 1, stoneQty: 2 },
+  vulcanica: { successRate: 0.85, item: "Rubi Infernal", itemQty: 1, stoneQty: 2 },
+  torre2: { successRate: 0.8, item: "Crânio Astral", itemQty: 1, stoneQty: 3 },
+  templo1: { successRate: 0.8, item: "Casca de Besouro", itemQty: 1, stoneQty: 3 },
+  castelo: { successRate: 0.75, item: "Coral Ilusório", itemQty: 1, stoneQty: 4 },
+  siena1: { successRate: 0.75, item: "Frutinha Parasitada", itemQty: 1, stoneQty: 4 },
+  ilha: { successRate: 0.7, item: "Rubi Infernal", itemQty: 1, stoneQty: 5 },
+  siena2: { successRate: 0.7, item: "Frutinha Parasitada", itemQty: 1, stoneQty: 5 },
+  salao: { successRate: 0.75, item: "Coral Ilusório", itemQty: 1, stoneQty: 6 },
+  templo2: { successRate: 1, item: "Casca de Besouro", itemQty: 1, stoneQty: 6 },
+};
+
+const npcEntryTemplates = {
+  lago: { pc: 1, alz: 1 },
+  estacao: { pc: 1, alz: 1 },
+  vulcanica: {
+    pc: 3,
+    alz: 300000,
+    items: [["Núcleo de Aprimoramento (Médio)", 1]],
+  },
+  templo1: {
+    pc: 3,
+    alz: 300000,
+    items: [["Núcleo de Aprimoramento (Médio)", 1]],
+  },
+  templo2: {
+    pc: 9,
+    alz: 1000000,
+    items: [["Núcleo de Aprimoramento (Altíssimo)", 1]],
+  },
+  ilha: {
+    pc: 6,
+    alz: 800000,
+    items: [["Núcleo de Aprimoramento (Alto)", 1]],
+  },
+  torre1: {
+    pc: 2,
+    alz: 500000,
+    items: [["Núcleo de Aprimoramento (Alto)", 1]],
+  },
+  torre2: {
+    pc: 4,
+    alz: 800000,
+    items: [["Núcleo de Aprimoramento (Alto)", 1]],
+  },
+  "vale-dificil": {
+    pc: 4,
+    alz: 1000000,
+    items: [
+      ["Núcleo de Aprimoramento (Alto)", 1],
+      ["Núcleo Arcano (Alto)", 1],
+    ],
+  },
+  "vale-desperto": {
+    pc: 5,
+    alz: 2000000,
+    items: [
+      ["Núcleo Arcano (Altíssimo)", 2],
+      ["Núcleo de Aprimoramento (Altíssimo)", 2],
+      ["Material Graduado", 1],
+    ],
+  },
+  siena1: {
+    pc: 6,
+    alz: 1000000,
+    items: [
+      ["Núcleo de Aprimoramento (Altíssimo)", 1],
+      ["Núcleo de Aprimoramento (Alto)", 1],
+    ],
+  },
+  siena2: {
+    pc: 7,
+    alz: 1000000,
+    items: [
+      ["Núcleo de Aprimoramento (Altíssimo)", 1],
+      ["Núcleo de Aprimoramento (Alto)", 1],
+    ],
+  },
+  castelo: {
+    pc: 4,
+    alz: 500000,
+    items: [
+      ["Núcleo de Aprimoramento (Altíssimo)", 1],
+      ["Núcleo de Aprimoramento (Alto)", 1],
+    ],
+  },
+  salao: {
+    pc: 7,
+    alz: 500000,
+    items: [
+      ["Núcleo de Aprimoramento (Alto)", 1],
+      ["Núcleo Arcano (Alto)", 1],
+    ],
+  },
+  entreposto: {
+    pc: 10,
+    alz: 1000000,
+    items: [
+      ["Núcleo Arcano (Altíssimo)", 1],
+      ["Núcleo de Aprimoramento (Altíssimo)", 1],
+    ],
+  },
+  pandemonium: {
+    pc: 6,
+    alz: 1000000,
+    items: [
+      ["Núcleo Arcano (Altíssimo)", 1],
+      ["Núcleo de Aprimoramento (Altíssimo)", 1],
+    ],
+  },
+  acheron: {
+    pc: 6,
+    alz: 500000,
+    items: [
+      ["Núcleo de Aprimoramento (Alto)", 5],
+      ["Núcleo de Aprimoramento (Altíssimo)", 2],
+      ["Material Graduado", 1],
+    ],
+  },
+  "ilha-desperta": {
+    pc: 8,
+    alz: 500000,
+    items: [
+      ["Núcleo de Aprimoramento (Alto)", 5],
+      ["Núcleo de Aprimoramento (Altíssimo)", 2],
+      ["Material Graduado", 1],
+    ],
+  },
+  torre3p2: {
+    pc: 7,
+    alz: 500000,
+    items: [
+      ["Núcleo de Aprimoramento (Alto)", 5],
+      ["Núcleo de Aprimoramento (Altíssimo)", 2],
+      ["Material Graduado", 1],
+    ],
+  },
+  "templo2-desperto": {
+    pc: 11,
+    alz: 1000000,
+    items: [
+      ["Núcleo de Aprimoramento (Alto)", 5],
+      ["Núcleo de Aprimoramento (Altíssimo)", 2],
+      ["Material Graduado", 1],
+    ],
+  },
+  torre3: {
+    pc: 11,
+    alz: 1000000,
+    items: [
+      ["Núcleo de Aprimoramento (Alto)", 5],
+      ["Núcleo de Aprimoramento (Altíssimo)", 2],
+      ["Material Graduado", 1],
+    ],
+  },
+  "castelo-apocrifos": {
+    pc: 7,
+    alz: 1000000,
+    items: [
+      ["Núcleo de Aprimoramento (Alto)", 5],
+      ["Núcleo de Aprimoramento (Altíssimo)", 2],
+      ["Material Graduado", 1],
+    ],
+  },
+  "catacumba-dificil": {
+    pc: 3,
+    alz: 300000,
+    items: [["Núcleo de Aprimoramento (Médio)", 1]],
+  },
+  "caverna-dificil": {
+    pc: 3,
+    alz: 300000,
+    items: [["Núcleo de Aprimoramento (Médio)", 1]],
+  },
+  "morada-dificil": {
+    pc: 3,
+    alz: 300000,
+    items: [["Núcleo de Aprimoramento (Médio)", 1]],
+  },
+  "locomotiva-dificil": {
+    pc: 3,
+    alz: 300000,
+    items: [["Núcleo de Aprimoramento (Médio)", 1]],
+  },
+  "catacumba-desperta": {
+    pc: 5,
+    alz: 1500000,
+    items: [
+      ["Núcleo de Aprimoramento (Alto)", 1],
+      ["Núcleo Arcano (Alto)", 1],
+    ],
+  },
+  "caverna-desperta": {
+    pc: 5,
+    alz: 1500000,
+    items: [
+      ["Núcleo de Aprimoramento (Alto)", 1],
+      ["Núcleo Arcano (Alto)", 1],
+    ],
+  },
+  "morada-desperta": {
+    pc: 5,
+    alz: 1500000,
+    items: [
+      ["Núcleo de Aprimoramento (Alto)", 1],
+      ["Núcleo Arcano (Alto)", 1],
+    ],
+  },
+  "locomotiva-desperta": {
+    pc: 5,
+    alz: 1500000,
+    items: [
+      ["Núcleo de Aprimoramento (Alto)", 1],
+      ["Núcleo Arcano (Alto)", 1],
+    ],
+  },
+};
+
+const gemOnlyEntryTemplates = {
+  "catacumba-premium": { pc: 4, item: "Gema Arcana", qty: 20 },
+  "caverna-premium": { pc: 4, item: "Gema Arcana", qty: 20 },
+  "morada-premium": { pc: 4, item: "Gema Arcana", qty: 20 },
+  "locomotiva-premium": { pc: 4, item: "Gema Arcana", qty: 20 },
+};
+
+const removedDungeonIds = new Set(["salao-apocrifos"]);
+
 function categoryForSettingItem(item) {
   if (item.startsWith("Núcleo de Aprimoramento")) return "Núcleo de Aprimoramento";
   if (item.startsWith("Núcleo Arcano")) return "Núcleo Arcano";
+  if (item === "Material Graduado") return "Material";
   return "Entrada";
 }
 
@@ -72,13 +392,15 @@ function settingItem(item, qty = 1, entryMode = "npc") {
   };
 }
 
-function fixedItem(item, qty, price, entryMode = "craft") {
+function craftEntry(recipeId) {
+  const recipe = craftRecipes[recipeId];
   return {
-    item,
-    qty,
-    price,
+    item: recipe ? `Craft: ${recipe.item}` : "Craft (Chloe)",
+    qty: 1,
     category: "Craft",
-    entryMode,
+    entryMode: "craft",
+    priceMode: "craftRecipe",
+    craftRecipeId: recipeId,
   };
 }
 
@@ -157,6 +479,98 @@ const highValueDrops = [
   drop("Runa de Essência (Max. Taxa Crítica)", "Runa"),
 ];
 
+const catacumbaDxBasic = [
+  farmSetting("Núcleo Arcano (Alto)", 0.1, "Núcleo Arcano"),
+  farmSetting("Núcleo Arcano (Altíssimo)", 0.18, "Núcleo Arcano"),
+  farmSetting("Núcleo de Aprimoramento (Alto)", 0.43, "Núcleo de Aprimoramento"),
+  farmSetting("Núcleo de Aprimoramento (Altíssimo)", 0.53, "Núcleo de Aprimoramento"),
+  jewel("Jóia Enfraquecida Amarela", 1),
+  jewel("Jóia Enfraquecida Laranja", 1),
+];
+
+const catacumbaDxExtras = [
+  ...highValueDrops,
+  drop("Espelho da Observação (Ouro)", "Especial"),
+  drop("Gema da Liberação", "Gema"),
+  drop("Livro de Treinamento de Minesta - Capítulo 28", "Livro"),
+  drop("Pedaço do Cartão do Mercenário - Leedy", "Mercenário"),
+  drop("Pedra Luminosa de Selena", "Especial"),
+];
+
+const cavernaDxBasic = [
+  farmSetting("Núcleo Arcano (Alto)", 0.12, "Núcleo Arcano"),
+  farmSetting("Núcleo Arcano (Altíssimo)", 0.16, "Núcleo Arcano"),
+  farmSetting("Núcleo de Aprimoramento (Alto)", 0.44, "Núcleo de Aprimoramento"),
+  farmSetting("Núcleo de Aprimoramento (Altíssimo)", 0.5, "Núcleo de Aprimoramento"),
+  jewel("Jóia Enfraquecida Amarela", 1),
+  jewel("Jóia Enfraquecida Laranja", 1),
+];
+
+const cavernaDxExtras = [
+  ...highValueDrops,
+  drop("Gema da Liberação", "Gema"),
+  drop("Livro de Treinamento de Minesta - Capítulo 28", "Livro"),
+];
+
+const moradaDxBasic = [
+  farmSetting("Núcleo Arcano (Alto)", 0.12, "Núcleo Arcano"),
+  farmSetting("Núcleo Arcano (Altíssimo)", 0.16, "Núcleo Arcano"),
+  farmSetting("Núcleo de Aprimoramento (Alto)", 0.44, "Núcleo de Aprimoramento"),
+  farmSetting("Núcleo de Aprimoramento (Altíssimo)", 0.5, "Núcleo de Aprimoramento"),
+  jewel("Jóia Enfraquecida Amarela", 1),
+  jewel("Jóia Enfraquecida Laranja", 1),
+];
+
+const moradaDxExtras = [
+  ...highValueDrops,
+  drop("Gema da Liberação", "Gema"),
+  drop("Pedra Luminosa de Selena", "Especial"),
+];
+
+const locomotivaDxBasic = [
+  farmSetting("Núcleo Arcano (Alto)", 0.12, "Núcleo Arcano"),
+  farmSetting("Núcleo Arcano (Altíssimo)", 0.16, "Núcleo Arcano"),
+  farmSetting("Núcleo de Aprimoramento (Alto)", 0.44, "Núcleo de Aprimoramento"),
+  farmSetting("Núcleo de Aprimoramento (Altíssimo)", 0.5, "Núcleo de Aprimoramento"),
+  jewel("Jóia Enfraquecida Amarela", 1),
+  jewel("Jóia Enfraquecida Laranja", 1),
+];
+
+const locomotivaDxExtras = [
+  ...highValueDrops,
+  drop("Gema da Liberação", "Gema"),
+  drop("Pedaço do Cartão do Mercenário - Leedy", "Mercenário"),
+];
+
+function dxVariantDungeons(baseId, name, minutes, basic, extras) {
+  return [
+    {
+      id: `${baseId}-dificil`,
+      name: `${name} (Difícil)`,
+      pc: 3,
+      minutes,
+      baseRuns: 30,
+      canReset: false,
+      resetRuns: 0,
+      entries: npcEntryLines(`${baseId}-dificil`),
+      basic,
+      extras,
+    },
+    {
+      id: `${baseId}-desperta`,
+      name: `${name} (Desperta)`,
+      pc: 5,
+      minutes,
+      baseRuns: 30,
+      canReset: false,
+      resetRuns: 0,
+      entries: npcEntryLines(`${baseId}-desperta`),
+      basic,
+      extras,
+    },
+  ];
+}
+
 const defaultDungeons = [
   {
     id: "lago",
@@ -166,7 +580,7 @@ const defaultDungeons = [
     baseRuns: 30,
     canReset: false,
     resetRuns: 0,
-    entries: [],
+    entries: [craftEntry("lago")],
     basic: [
       farmSetting("Núcleo Arcano (Baixo)", 0.6, "Núcleo Arcano"),
       farmSetting("Núcleo de Aprimoramento (Baixo)", 0.7, "Núcleo de Aprimoramento"),
@@ -193,7 +607,7 @@ const defaultDungeons = [
     baseRuns: 30,
     canReset: false,
     resetRuns: 0,
-    entries: [],
+    entries: [craftEntry("estacao")],
     basic: [
       farmSetting("Núcleo Arcano (Médio)", 0.45, "Núcleo Arcano"),
       farmSetting("Núcleo de Aprimoramento (Médio)", 0.8, "Núcleo de Aprimoramento"),
@@ -215,7 +629,7 @@ const defaultDungeons = [
     baseRuns: 30,
     canReset: false,
     resetRuns: 0,
-    entries: [],
+    entries: [craftEntry("torre1")],
     basic: [
       farmSetting("Núcleo Arcano (Médio)", 0.55, "Núcleo Arcano"),
       farmSetting("Núcleo de Aprimoramento (Médio)", 1.1, "Núcleo de Aprimoramento"),
@@ -236,7 +650,7 @@ const defaultDungeons = [
     baseRuns: 30,
     canReset: false,
     resetRuns: 0,
-    entries: [],
+    entries: [craftEntry("vulcanica")],
     basic: [
       farmSetting("Núcleo Arcano (Alto)", 0.75, "Núcleo Arcano"),
       farmSetting("Núcleo de Aprimoramento (Alto)", 0.85, "Núcleo de Aprimoramento"),
@@ -258,7 +672,7 @@ const defaultDungeons = [
     baseRuns: 30,
     canReset: true,
     resetRuns: 30,
-    entries: [],
+    entries: [craftEntry("torre2")],
     basic: [
       farmSetting("Núcleo Arcano (Alto)", 1.1, "Núcleo Arcano"),
       farmSetting("Núcleo de Aprimoramento (Alto)", 1.2, "Núcleo de Aprimoramento"),
@@ -280,7 +694,7 @@ const defaultDungeons = [
     baseRuns: 30,
     canReset: false,
     resetRuns: 0,
-    entries: [],
+    entries: [craftEntry("templo1")],
     basic: [
       farmSetting("Núcleo Arcano (Alto)", 0.95, "Núcleo Arcano"),
       farmSetting("Núcleo de Aprimoramento (Alto)", 1.05, "Núcleo de Aprimoramento"),
@@ -302,8 +716,7 @@ const defaultDungeons = [
     canReset: true,
     resetRuns: 30,
     entries: [
-      fixedItem("Coral Ilusório", 1, 139600),
-      fixedItem("Pedra B. da Dimensão", 4, 100000),
+      craftEntry("castelo"),
       alzEntry(500000),
       settingItem("Núcleo de Aprimoramento (Altíssimo)", 1),
       settingItem("Núcleo de Aprimoramento (Alto)", 1),
@@ -329,7 +742,7 @@ const defaultDungeons = [
     baseRuns: 30,
     canReset: false,
     resetRuns: 0,
-    entries: [],
+    entries: [craftEntry("salao")],
     basic: [
       farmSetting("Núcleo Arcano (Alto)", 1.15, "Núcleo Arcano"),
       farmSetting("Núcleo de Aprimoramento (Alto)", 1.22, "Núcleo de Aprimoramento"),
@@ -351,8 +764,7 @@ const defaultDungeons = [
     canReset: true,
     resetRuns: 30,
     entries: [
-      fixedItem("Frutinha Parasitada", 1, 139600),
-      fixedItem("Pedra B. da Dimensão", 4, 100000),
+      craftEntry("siena1"),
       alzEntry(1000000),
       settingItem("Núcleo de Aprimoramento (Altíssimo)", 1),
       settingItem("Núcleo de Aprimoramento (Alto)", 1),
@@ -381,7 +793,7 @@ const defaultDungeons = [
     baseRuns: 30,
     canReset: false,
     resetRuns: 0,
-    entries: [],
+    entries: [craftEntry("ilha")],
     basic: [
       farmSetting("Núcleo Arcano (Alto)", 1.2, "Núcleo Arcano"),
       farmSetting("Núcleo de Aprimoramento (Alto)", 1.3, "Núcleo de Aprimoramento"),
@@ -403,8 +815,7 @@ const defaultDungeons = [
     canReset: true,
     resetRuns: 30,
     entries: [
-      fixedItem("Frutinha Parasitada", 1, 139600),
-      fixedItem("Pedra B. da Dimensão", 5, 100000),
+      craftEntry("siena2"),
       alzEntry(1000000),
       settingItem("Núcleo de Aprimoramento (Altíssimo)", 1),
       settingItem("Núcleo de Aprimoramento (Alto)", 1),
@@ -434,7 +845,7 @@ const defaultDungeons = [
     baseRuns: 30,
     canReset: false,
     resetRuns: 0,
-    entries: [],
+    entries: [craftEntry("templo2")],
     basic: [
       farmSetting("Núcleo Arcano (Altíssimo)", 1.2, "Núcleo Arcano"),
       farmSetting("Núcleo de Aprimoramento (Altíssimo)", 1.25, "Núcleo de Aprimoramento"),
@@ -597,8 +1008,9 @@ const defaultDungeons = [
     resetRuns: 28,
     entries: [
       alzEntry(1000000),
-      settingItem("Núcleo de Aprimoramento (Altíssimo)", 2),
       settingItem("Núcleo de Aprimoramento (Alto)", 5),
+      settingItem("Núcleo de Aprimoramento (Altíssimo)", 2),
+      settingItem("Material Graduado", 1),
     ],
     basic: [
       farmSetting("Núcleo de Aprimoramento (Altíssimo)", 1.55, "Núcleo de Aprimoramento"),
@@ -606,26 +1018,6 @@ const defaultDungeons = [
       jewel("Jóia Enfraquecida Azul", 1),
       jewel("Jóia Enfraquecida Violeta", 1),
       jewel("Jóia Enfraquecida Branca", 1),
-    ],
-    extras: [
-      drop("Equipamentos de Orichalcum", "Equipamento"),
-      ...capeDrops,
-      ...highValueDrops,
-    ],
-  },
-  {
-    id: "salao-apocrifos",
-    name: "Salão Radiante do Castelo das Ilusões (Apócrifos)",
-    pc: 5,
-    minutes: 4.2,
-    baseRuns: 30,
-    canReset: false,
-    resetRuns: 0,
-    entries: [],
-    basic: [
-      farmSetting("Núcleo Arcano (Altíssimo)", 1.35, "Núcleo Arcano"),
-      farmSetting("Núcleo de Aprimoramento (Altíssimo)", 1.4, "Núcleo de Aprimoramento"),
-      jewel("Jóia Enfraquecida Violeta", 0.08),
     ],
     extras: [
       drop("Equipamentos de Orichalcum", "Equipamento"),
@@ -653,6 +1045,10 @@ const defaultDungeons = [
       ...highValueDrops,
     ],
   },
+  ...dxVariantDungeons("catacumba", "Catacumba Gélida", 1.4, catacumbaDxBasic, catacumbaDxExtras),
+  ...dxVariantDungeons("caverna", "Caverna do Pânico", 1.5, cavernaDxBasic, cavernaDxExtras),
+  ...dxVariantDungeons("morada", "Morada das Chamas Infernais", 1.5, moradaDxBasic, moradaDxExtras),
+  ...dxVariantDungeons("locomotiva", "Locomotiva Louca", 1.5, locomotivaDxBasic, locomotivaDxExtras),
   {
     id: "catacumba-premium",
     name: "Catacumba Gélida (Premium)",
@@ -809,10 +1205,11 @@ const app = {
   ui: {
     selectedDungeon: "lago",
     runs: 30,
-    useReset: false,
     sellPc: true,
     rankMode: "profit",
+    activeView: "dungeon",
     entryModes: {},
+    entryConfigOpen: {},
     countedDrops: {},
   },
 };
@@ -822,18 +1219,19 @@ const elements = {
   dungeonSearch: document.querySelector("#dungeon-search"),
   dungeonTitle: document.querySelector("#dungeon-title"),
   runsInput: document.querySelector("#runs-input"),
-  resetToggle: document.querySelector("#reset-toggle"),
   sellPcToggle: document.querySelector("#sell-pc-toggle"),
   totalRuns: document.querySelector("#total-runs"),
+  resetCostDisplay: document.querySelector("#reset-cost-display"),
   entryList: document.querySelector("#entry-list"),
   entryModeSelect: document.querySelector("#entry-mode-select"),
   dgConfigTitle: document.querySelector("#dg-config-title"),
-  dgConfigEntryModeSelect: document.querySelector("#dg-config-entry-mode-select"),
-  dgConfigEntryList: document.querySelector("#dg-config-entry-list"),
+  dgConfigEntrySections: document.querySelector("#dg-config-entry-sections"),
   dgConfigPc: document.querySelector("#dg-config-pc"),
   dgConfigCashbackList: document.querySelector("#dg-config-cashback-list"),
   openDgSettings: document.querySelector("#open-dg-settings"),
   backToFarm: document.querySelector("#back-to-farm"),
+  settingsMenuToggle: document.querySelector("#settings-menu-toggle"),
+  settingsMenuOptions: document.querySelector("#settings-menu-options"),
   basicFarmList: document.querySelector("#basic-farm-list"),
   cashbackList: document.querySelector("#cashback-list"),
   extraDropList: document.querySelector("#extra-drop-list"),
@@ -861,16 +1259,37 @@ function clone(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
+function mergeDungeonsWithDefaults(savedDungeons) {
+  if (!Array.isArray(savedDungeons)) return clone(defaultDungeons);
+
+  const savedById = new Map(savedDungeons.map((dungeon) => [dungeon.id, dungeon]));
+  return clone(defaultDungeons).map((defaultDungeon) => {
+    const savedDungeon = savedById.get(defaultDungeon.id);
+    if (!savedDungeon) return defaultDungeon;
+
+    return {
+      ...defaultDungeon,
+      ...savedDungeon,
+      entries: Array.isArray(savedDungeon.entries) ? savedDungeon.entries : defaultDungeon.entries,
+      basic: Array.isArray(savedDungeon.basic) ? savedDungeon.basic : defaultDungeon.basic,
+      extras: Array.isArray(savedDungeon.extras) ? savedDungeon.extras : defaultDungeon.extras,
+      cashback: Array.isArray(savedDungeon.cashback) ? savedDungeon.cashback : defaultDungeon.cashback,
+    };
+  });
+}
+
 function loadSavedData() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
     if (!saved) return;
+    app.savedDataVersion = Number(saved.dataVersion || 0);
     app.settings = { ...clone(defaultSettings), ...(saved.settings || {}) };
-    app.dungeons = Array.isArray(saved.dungeons) ? saved.dungeons : clone(defaultDungeons);
+    app.dungeons = mergeDungeonsWithDefaults(saved.dungeons);
     app.ui = {
       ...app.ui,
       ...(saved.ui || {}),
       entryModes: saved.ui?.entryModes || {},
+      entryConfigOpen: saved.ui?.entryConfigOpen || {},
       countedDrops: saved.ui?.countedDrops || {},
     };
   } catch {
@@ -886,6 +1305,7 @@ function saveData() {
       settings: app.settings,
       dungeons: app.dungeons,
       ui: app.ui,
+      dataVersion: DATA_VERSION,
     }),
   );
 }
@@ -896,6 +1316,10 @@ function isAlzEntry(line) {
 
 function isJewelLine(line) {
   return line?.category === "Jóia" || Object.prototype.hasOwnProperty.call(jewelPrices, line?.item);
+}
+
+function isCraftRecipeEntry(line) {
+  return line?.priceMode === "craftRecipe" && Boolean(line?.craftRecipeId);
 }
 
 function normalizeJewelItem(item) {
@@ -910,30 +1334,202 @@ function jewelValue(item) {
   return jewelPrices[normalizeJewelItem(item)] || 0;
 }
 
+function defaultCashbackForDungeon(dungeon) {
+  return (cashbackTemplates[dungeon.id] || []).map(([runs, item]) => ({
+    runs,
+    item,
+    category: "Jóia",
+  }));
+}
+
+function normalizeCashbackRewards(rewards) {
+  if (!Array.isArray(rewards)) return [];
+  return rewards
+    .map((reward) => ({
+      runs: Math.max(1, Math.round(Number(reward?.runs || reward?.requiredRuns) || 1)),
+      item: normalizeJewelItem(reward?.item || reward?.jewel),
+      category: "Jóia",
+    }))
+    .sort((a, b) => a.runs - b.runs);
+}
+
+function defaultBaseRunLimit(dungeon) {
+  if (DX_PREMIUM_IDS.has(dungeon.id)) return 15;
+  if (DX_DIFICIL_IDS.has(dungeon.id) || VALE_LIMIT_IDS.has(dungeon.id)) return 20;
+  return 30;
+}
+
+function baseRunLimit(dungeon = currentDungeon()) {
+  return Math.max(1, Math.round(Number(dungeon.baseRuns) || defaultBaseRunLimit(dungeon)));
+}
+
+function resetGemQty(dungeon = currentDungeon()) {
+  return Math.max(0, Math.round(Number(dungeon.resetCostGems ?? DEFAULT_RESET_GEMS)));
+}
+
+function resetCount(dungeon = currentDungeon(), runs = effectiveRuns(dungeon)) {
+  return Math.max(0, Math.ceil((runs - baseRunLimit(dungeon)) / baseRunLimit(dungeon)));
+}
+
+function resetCost(dungeon = currentDungeon(), runs = effectiveRuns(dungeon)) {
+  return resetCount(dungeon, runs) * resetGemQty(dungeon) * gemUnitValue();
+}
+
 function inferEntryMode(line) {
   if (line.entryMode) return line.entryMode;
+  if (isCraftRecipeEntry(line)) return "craft";
   if (line.priceMode === "gem" || line.category === "Gema") return "gems";
   if (isAlzEntry(line) || line.priceKey) return "npc";
   return "craft";
 }
 
 function defaultEntryMode(dungeon) {
-  const modes = new Set((dungeon.entries || []).map((line) => inferEntryMode(line)));
-  if (modes.has("npc")) return "npc";
-  if (modes.has("craft")) return "craft";
-  if (modes.has("gems")) return "gems";
+  const modes = availableEntryModes(dungeon);
+  if (modes.includes("npc")) return "npc";
+  if (modes.includes("craft")) return "craft";
+  if (modes.includes("gems")) return "gems";
   return "npc";
 }
 
+function ensureCraftRecipeEntry(dungeon) {
+  const recipe = craftRecipes[dungeon.id];
+  if (!recipe) return;
+
+  dungeon.entries = (dungeon.entries || []).filter((line) => {
+    if (isCraftRecipeEntry(line)) return true;
+    if (inferEntryMode(line) !== "craft") return true;
+    return line.item !== recipe.item && !String(line.item || "").includes("Pedra");
+  });
+
+  const existing = dungeon.entries.find((line) => isCraftRecipeEntry(line) && line.craftRecipeId === dungeon.id);
+  if (existing) {
+    existing.item = `Craft: ${recipe.item}`;
+    existing.qty = 1;
+    existing.category = "Craft";
+    existing.entryMode = "craft";
+    return;
+  }
+
+  dungeon.entries.unshift(craftEntry(dungeon.id));
+}
+
+function npcEntryLines(dungeonId) {
+  const template = npcEntryTemplates[dungeonId];
+  if (!template) return [];
+
+  return [
+    alzEntry(template.alz),
+    ...(template.items || []).map(([item, qty]) => settingItem(item, qty, "npc")),
+  ];
+}
+
+function ensureNpcEntryTemplate(dungeon, forceTemplate = false) {
+  const template = npcEntryTemplates[dungeon.id];
+  if (!template) return;
+
+  const hasNpcEntry = (dungeon.entries || []).some((line) => inferEntryMode(line) === "npc");
+  if (forceTemplate || !hasNpcEntry) {
+    dungeon.pc = template.pc;
+    dungeon.entries = [
+      ...(dungeon.entries || []).filter((line) => inferEntryMode(line) !== "npc"),
+      ...npcEntryLines(dungeon.id),
+    ];
+  }
+}
+
+function ensureGemOnlyEntryTemplate(dungeon) {
+  const template = gemOnlyEntryTemplates[dungeon.id];
+  if (!template) return;
+
+  dungeon.pc = template.pc;
+  dungeon.entries = [gemEntry(template.item, template.qty)];
+  dungeon.gemEntryEnabled = true;
+}
+
+function ensureGemEntryLine(dungeon) {
+  dungeon.entries = dungeon.entries || [];
+  let line = dungeon.entries.find((entry) => inferEntryMode(entry) === "gems");
+  if (!line) {
+    line = gemEntry("Gema Arcana", 20);
+    dungeon.entries.push(line);
+  }
+
+  line.item = line.item || "Gema Arcana";
+  line.category = "Gema";
+  line.entryMode = "gems";
+  line.priceMode = "gem";
+  line.qty = Number(line.qty) || 20;
+  return line;
+}
+
+function npcEntryIsAvailable(dungeon) {
+  return (dungeon.entries || [])
+    .filter((line) => inferEntryMode(line) === "npc")
+    .some((line) => !isAlzEntry(line) || Number(line.qty) > 0);
+}
+
+function availableEntryModes(dungeon = currentDungeon()) {
+  const modes = [];
+  if (npcEntryIsAvailable(dungeon)) modes.push("npc");
+  if (craftRecipes[dungeon.id]) modes.push("craft");
+  if (dungeon.gemEntryEnabled) modes.push("gems");
+  return modes;
+}
+
+function ensureAvailableEntryMode(dungeon = currentDungeon()) {
+  const modes = availableEntryModes(dungeon);
+  if (!modes.length) return;
+  if (!modes.includes(app.ui.entryModes[dungeon.id])) {
+    app.ui.entryModes[dungeon.id] = modes[0];
+  }
+}
+
+function renderEntryModeOptions() {
+  const dungeon = currentDungeon();
+  const modes = availableEntryModes(dungeon);
+  elements.entryModeSelect.innerHTML = modes
+    .map((mode) => `<option value="${mode}">${ENTRY_MODE_LABELS[mode]}</option>`)
+    .join("");
+  elements.entryModeSelect.disabled = modes.length <= 1;
+  if (modes.includes(currentEntryMode(dungeon))) {
+    elements.entryModeSelect.value = currentEntryMode(dungeon);
+  }
+}
+
+function entryConfigKey(dungeon, mode) {
+  return `${dungeon.id}:${mode}`;
+}
+
+function entryConfigIsOpen(dungeon, mode) {
+  return Boolean(app.ui.entryConfigOpen[entryConfigKey(dungeon, mode)]);
+}
+
 function normalizeAppData() {
+  app.dungeons = app.dungeons.filter((dungeon) => !removedDungeonIds.has(dungeon.id));
+
+  if (!app.dungeons.some((dungeon) => dungeon.id === app.ui.selectedDungeon)) {
+    app.ui.selectedDungeon = app.dungeons[0]?.id || "lago";
+  }
+
+  const useCurrentDefaults = (app.savedDataVersion || 0) < DATA_VERSION;
+
   app.dungeons.forEach((dungeon) => {
-    const jewelLines = (dungeon.basic || []).filter(isJewelLine);
+    dungeon.baseRuns = useCurrentDefaults ? defaultBaseRunLimit(dungeon) : baseRunLimit(dungeon);
+    dungeon.resetCostGems = useCurrentDefaults ? DEFAULT_RESET_GEMS : resetGemQty(dungeon);
     dungeon.entries = (dungeon.entries || []).map((line) => {
       const normalized = {
         ...line,
         entryMode: inferEntryMode(line),
-        category: line.category || categoryForSettingItem(line.item),
+          category: line.category || categoryForSettingItem(line.item),
       };
+
+      if (isCraftRecipeEntry(normalized)) {
+        normalized.qty = 1;
+        normalized.category = "Craft";
+        normalized.entryMode = "craft";
+        delete normalized.price;
+        delete normalized.priceKey;
+      }
 
       if (isAlzEntry(normalized)) {
         normalized.item = "Alz";
@@ -945,21 +1541,19 @@ function normalizeAppData() {
 
       return normalized;
     });
+    dungeon.gemEntryEnabled = Boolean(dungeon.gemEntryEnabled ?? (dungeon.entries || []).some((line) => inferEntryMode(line) === "gems"));
+    ensureGemEntryLine(dungeon);
+    ensureCraftRecipeEntry(dungeon);
+    ensureNpcEntryTemplate(dungeon, useCurrentDefaults);
+    ensureGemOnlyEntryTemplate(dungeon);
     dungeon.basic = (dungeon.basic || []).filter((line) => !isJewelLine(line));
-    dungeon.cashback = CASHBACK_THRESHOLDS.map((runs, index) => {
-      const existingRewards = Array.isArray(dungeon.cashback) ? dungeon.cashback : [];
-      const existing = existingRewards.find((reward) => Number(reward.runs || reward.requiredRuns) === runs) || existingRewards[index];
-      const fallbackItem = jewelLines[index]?.item || jewelLines[jewelLines.length - 1]?.item || JEWEL_ITEMS[0];
-
-      return {
-        runs: Number(existing?.runs || existing?.requiredRuns || runs),
-        item: normalizeJewelItem(existing?.item || existing?.jewel || fallbackItem),
-        category: "Jóia",
-      };
-    });
+    dungeon.cashback = normalizeCashbackRewards(
+      useCurrentDefaults || !Array.isArray(dungeon.cashback) ? defaultCashbackForDungeon(dungeon) : dungeon.cashback,
+    );
     if (!app.ui.entryModes[dungeon.id]) {
       app.ui.entryModes[dungeon.id] = defaultEntryMode(dungeon);
     }
+    ensureAvailableEntryMode(dungeon);
   });
 }
 
@@ -1031,7 +1625,7 @@ function formatMoneyInput(input) {
 }
 
 function isMoneySettingKey(key) {
-  return !key.startsWith("Quantidade");
+  return !key.startsWith("Quantidade") && key !== CRAFT_ITEM_PC_COST_KEY;
 }
 
 function currentDungeon() {
@@ -1056,8 +1650,40 @@ function pcUnitProfit() {
   return ((app.settings["Protetor PC (100 PC)"] || 0) - protectorCost()) / 100;
 }
 
+function craftStoneUnitValue() {
+  return (app.settings[DIMENSION_STONE_PACK_KEY] || 0) / 10;
+}
+
+function craftItemUnitValue() {
+  return (app.settings[CRAFT_ITEM_PC_COST_KEY] || 0) * pcUnitProfit();
+}
+
+function craftRecipeForLine(line) {
+  return isCraftRecipeEntry(line) ? craftRecipes[line.craftRecipeId] : null;
+}
+
+function craftRecipeAttemptCost(recipe) {
+  if (!recipe) return 0;
+  return recipe.itemQty * craftItemUnitValue() + recipe.stoneQty * craftStoneUnitValue();
+}
+
+function craftRecipeExpectedCost(recipe) {
+  if (!recipe?.successRate) return 0;
+  return craftRecipeAttemptCost(recipe) / recipe.successRate;
+}
+
+function craftRecipeDetails(recipe) {
+  if (!recipe) return "";
+  return `${recipe.itemQty} ${recipe.item} + ${recipe.stoneQty} Pedra Bruta da Dimensão`;
+}
+
+function craftRecipeChance(recipe) {
+  return `${formatNumber((recipe?.successRate || 0) * 100)}%`;
+}
+
 function priceForLine(line) {
   if (line.priceMode === "gem") return gemUnitValue();
+  if (isCraftRecipeEntry(line)) return craftRecipeExpectedCost(craftRecipeForLine(line));
   if (line.priceKey) return app.settings[line.priceKey] || 0;
   return line.price || 0;
 }
@@ -1068,11 +1694,11 @@ function entryLineCostPerRun(line) {
 }
 
 function canEditEntryQty(line) {
-  return !isAlzEntry(line);
+  return !isAlzEntry(line) && !isCraftRecipeEntry(line);
 }
 
 function canEditEntryPrice(line) {
-  return line.entryMode === "craft" && !line.priceKey && line.priceMode !== "gem" && line.item !== "Alz";
+  return line.entryMode === "craft" && !line.priceKey && line.priceMode !== "gem" && !isCraftRecipeEntry(line) && line.item !== "Alz";
 }
 
 function canEditBasicPrice(line) {
@@ -1080,7 +1706,9 @@ function canEditBasicPrice(line) {
 }
 
 function currentEntryMode(dungeon = currentDungeon()) {
-  return app.ui.entryModes[dungeon.id] || defaultEntryMode(dungeon);
+  const mode = app.ui.entryModes[dungeon.id] || defaultEntryMode(dungeon);
+  const modes = availableEntryModes(dungeon);
+  return modes.includes(mode) ? mode : modes[0] || "npc";
 }
 
 function activeEntryRecords(dungeon = currentDungeon()) {
@@ -1090,15 +1718,65 @@ function activeEntryRecords(dungeon = currentDungeon()) {
     .filter((record) => record.line.entryMode === mode);
 }
 
+function ensureAlzEntryForMode(dungeon = currentDungeon(), mode = currentEntryMode(dungeon)) {
+  dungeon.entries = dungeon.entries || [];
+  let index = dungeon.entries.findIndex((line) => isAlzEntry(line) && line.entryMode === mode);
+  if (index < 0) {
+    dungeon.entries.unshift(alzEntry(0));
+    dungeon.entries[0].entryMode = mode;
+    index = 0;
+  }
+  return { line: dungeon.entries[index], index };
+}
+
+function entryItemOptions() {
+  return [
+    ...Object.keys(app.settings).filter((key) => key.startsWith("Núcleo Arcano")),
+    ...Object.keys(app.settings).filter((key) => key.startsWith("Núcleo de Aprimoramento")),
+    "Material Graduado",
+  ];
+}
+
+function entryItemOptionsHtml() {
+  return entryItemOptions()
+    .map((item) => `<option value="${item}">${item}</option>`)
+    .join("");
+}
+
+function addEntryItemToMode(mode, item, qty = 1) {
+  const dungeon = currentDungeon();
+  if (!item || qty <= 0) return;
+
+  const existing = dungeon.entries.find((line) => line.entryMode === mode && line.item === item);
+  if (existing) {
+    existing.qty = numberValue(existing.qty) + qty;
+  } else {
+    dungeon.entries.push(settingItem(item, qty, mode));
+  }
+}
+
+function removeEntryLine(index) {
+  const dungeon = currentDungeon();
+  const line = dungeon.entries[index];
+  if (!line || isAlzEntry(line)) return;
+  dungeon.entries.splice(index, 1);
+}
+
 function effectiveRuns(dungeon = currentDungeon()) {
-  const base = app.ui.runs || dungeon.baseRuns || 30;
-  return base + (app.ui.useReset && dungeon.canReset ? dungeon.resetRuns || 0 : 0);
+  return Math.max(1, Math.round(Number(app.ui.runs) || baseRunLimit(dungeon)));
 }
 
 function entryCost(dungeon = currentDungeon(), runs = effectiveRuns(dungeon)) {
-  return activeEntryRecords(dungeon).reduce((sum, record) => {
+  const entryRunsCost = activeEntryRecords(dungeon).reduce((sum, record) => {
     return sum + entryLineCostPerRun(record.line) * runs;
   }, 0);
+  return entryRunsCost + resetCost(dungeon, runs);
+}
+
+function entryCostForMode(dungeon, mode, runs = 1) {
+  return (dungeon.entries || [])
+    .filter((line) => line.entryMode === mode)
+    .reduce((sum, line) => sum + entryLineCostPerRun(line) * runs, 0);
 }
 
 function basicReturn(dungeon = currentDungeon(), runs = effectiveRuns(dungeon)) {
@@ -1226,13 +1904,19 @@ function swatchClass(category) {
 function renderView() {
   document.querySelectorAll(".view").forEach((view) => view.classList.remove("active-view"));
   const activeTab = document.querySelector(".nav-button.active");
-  document.querySelector(`#${activeTab.dataset.view}-view`).classList.add("active-view");
-}
-
-function setActiveView(viewName) {
+  const viewName = app.ui.activeView || activeTab?.dataset.view || "dungeon";
   document.querySelectorAll(".nav-button").forEach((button) => {
     button.classList.toggle("active", button.dataset.view === viewName);
   });
+  document.querySelector(`#${viewName}-view`)?.classList.add("active-view");
+}
+
+function setActiveView(viewName) {
+  app.ui.activeView = viewName;
+  document.querySelectorAll(".nav-button").forEach((button) => {
+    button.classList.toggle("active", button.dataset.view === viewName);
+  });
+  saveData();
   renderView();
   document.querySelector(".workspace")?.scrollTo({ top: 0, behavior: "smooth" });
 }
@@ -1250,67 +1934,12 @@ function renderDungeonButtons() {
       button.type = "button";
       button.addEventListener("click", () => {
         app.ui.selectedDungeon = dungeon.id;
-        app.ui.runs = dungeon.baseRuns || 30;
-        app.ui.useReset = false;
+        app.ui.runs = baseRunLimit(dungeon);
         saveData();
         render();
       });
       elements.dungeonButtons.appendChild(button);
     });
-}
-
-function renderEntries() {
-  const dungeon = currentDungeon();
-  const records = activeEntryRecords(dungeon);
-  const selectedMode = currentEntryMode(dungeon);
-  elements.entryList.innerHTML = `
-    <div class="table-row header">
-      <span>Item</span>
-      <span>Qtd/DG</span>
-      <span>Preço</span>
-      <span>Total/DG</span>
-    </div>
-  `;
-
-  if (!records.length) {
-    elements.entryList.innerHTML += `<div class="empty-state">Entrada ainda não cadastrada para ${ENTRY_MODE_LABELS[selectedMode]}.</div>`;
-    return;
-  }
-
-  records.forEach(({ line, index }) => {
-    if (isAlzEntry(line)) {
-      const row = document.createElement("div");
-      row.className = "table-row alz-row";
-      row.innerHTML = `
-        <div class="item-name">
-          <span class="swatch ${swatchClass(line.category || line.item)}"></span>
-          <span title="${line.item}">${line.item}</span>
-        </div>
-        <label class="entry-money-cell">
-          <span>Valor/DG</span>
-          <input data-entry-index="${index}" data-entry-field="alz" data-money-input="true" type="text" inputmode="numeric" autocomplete="off" value="${formatAlzNumber(line.qty)}" />
-        </label>
-        <strong class="entry-total" data-entry-total="${index}">${alzHtml(entryLineCostPerRun(line))}</strong>
-      `;
-      elements.entryList.appendChild(row);
-      return;
-    }
-
-    const qtyLocked = !canEditEntryQty(line);
-    const priceLocked = !canEditEntryPrice(line);
-    const row = document.createElement("div");
-    row.className = "table-row";
-    row.innerHTML = `
-      <div class="item-name">
-        <span class="swatch ${swatchClass(line.category || line.item)}"></span>
-        <span title="${line.item}">${line.item}</span>
-      </div>
-      <input data-entry-index="${index}" data-entry-field="qty" type="number" min="0" step="0.01" value="${line.qty}" ${qtyLocked ? "disabled" : ""} />
-      <input data-entry-index="${index}" data-entry-field="price" data-money-input="true" type="text" inputmode="numeric" autocomplete="off" value="${formatAlzNumber(priceForLine(line))}" ${priceLocked ? "disabled" : ""} />
-      <strong class="entry-total" data-entry-total="${index}">${alzHtml(entryLineCostPerRun(line))}</strong>
-    `;
-    elements.entryList.appendChild(row);
-  });
 }
 
 function renderEntries() {
@@ -1332,15 +1961,17 @@ function renderEntries() {
   }
 
   records.forEach(({ line, index }) => {
+    const recipe = craftRecipeForLine(line);
     const row = document.createElement("div");
     row.className = "table-row entry-row";
     row.innerHTML = `
       <div class="item-name">
         <span class="swatch ${swatchClass(line.category || line.item)}"></span>
-        <span title="${line.item}">${line.item}</span>
+        <span title="${recipe ? craftRecipeDetails(recipe) : line.item}">${recipe ? "Craft (Chloe)" : line.item}</span>
+        ${recipe ? `<small>${craftRecipeDetails(recipe)}</small>` : ""}
       </div>
-      <strong>${isAlzEntry(line) ? "Valor/DG" : formatNumber(line.qty)}</strong>
-      <strong>${isAlzEntry(line) ? "Moeda" : alzHtml(priceForLine(line))}</strong>
+      <strong>${isAlzEntry(line) ? "Valor/DG" : recipe ? craftRecipeChance(recipe) : formatNumber(line.qty)}</strong>
+      <strong>${isAlzEntry(line) ? "Moeda" : recipe ? "Custo esperado" : alzHtml(priceForLine(line))}</strong>
       <strong class="entry-total" data-entry-total="${index}">${alzHtml(entryLineCostPerRun(line))}</strong>
     `;
     elements.entryList.appendChild(row);
@@ -1349,56 +1980,144 @@ function renderEntries() {
 
 function renderEntryConfig() {
   const dungeon = currentDungeon();
-  const mode = currentEntryMode(dungeon);
-  const records = activeEntryRecords(dungeon);
-  elements.dgConfigEntryList.innerHTML = `
-    <div class="table-row header">
-      <span>Item</span>
-      <span>Qtd/DG</span>
-      <span>Preço</span>
-      <span>Total/DG</span>
+  ensureAlzEntryForMode(dungeon, "npc");
+  const sections = [renderNpcEntrySection(dungeon)];
+  if (craftRecipes[dungeon.id]) sections.push(renderCraftEntrySection(dungeon));
+  sections.push(renderGemEntrySection(dungeon));
+  elements.dgConfigEntrySections.innerHTML = sections.join("");
+}
+
+function renderEntrySection(dungeon, mode, title, summary, body, controls = "") {
+  const open = entryConfigIsOpen(dungeon, mode);
+  return `
+    <section class="entry-accordion ${open ? "open" : ""}">
+      <div class="entry-accordion-head">
+        <button type="button" data-entry-section-toggle="${mode}" aria-expanded="${open}">
+          <span>${title}</span>
+          <small>${summary}</small>
+        </button>
+        ${controls}
+      </div>
+      <div class="entry-accordion-body" ${open ? "" : "hidden"}>
+        ${body}
+      </div>
+    </section>
+  `;
+}
+
+function renderNpcEntrySection(dungeon) {
+  const records = (dungeon.entries || [])
+    .map((line, index) => ({ line, index }))
+    .filter((record) => record.line.entryMode === "npc");
+
+  const rows = records
+    .map(({ line, index }) => {
+      if (isAlzEntry(line)) {
+        return `
+          <div class="table-row entry-config-row alz-row">
+            <div class="item-name">
+              <span class="swatch ${swatchClass(line.category || line.item)}"></span>
+              <span title="${line.item}">${line.item}</span>
+            </div>
+            <label class="entry-money-cell">
+              <span>Valor/DG</span>
+              <input data-entry-index="${index}" data-entry-field="alz" data-money-input="true" type="text" inputmode="numeric" autocomplete="off" value="${formatAlzNumber(line.qty)}" />
+            </label>
+            <strong>Moeda</strong>
+            <strong class="entry-total" data-entry-total="${index}">${alzHtml(entryLineCostPerRun(line))}</strong>
+            <span></span>
+          </div>
+        `;
+      }
+
+      return `
+        <div class="table-row entry-config-row">
+          <div class="item-name">
+            <span class="swatch ${swatchClass(line.category || line.item)}"></span>
+            <span title="${line.item}">${line.item}</span>
+          </div>
+          <input data-entry-index="${index}" data-entry-field="qty" type="number" min="0" step="0.01" value="${line.qty}" />
+          <input data-entry-index="${index}" data-entry-field="price" data-money-input="true" type="text" inputmode="numeric" autocomplete="off" value="${formatAlzNumber(priceForLine(line))}" disabled />
+          <strong class="entry-total" data-entry-total="${index}">${alzHtml(entryLineCostPerRun(line))}</strong>
+          <button class="remove-button" data-remove-entry-index="${index}" type="button" aria-label="Remover ${line.item} da entrada">${iconSvg("x")}</button>
+        </div>
+      `;
+    })
+    .join("");
+
+  const body = `
+    <div class="data-table">
+      <div class="table-row header entry-config-row">
+        <span>Item</span>
+        <span>Qtd/DG</span>
+        <span>Preço</span>
+        <span>Total/DG</span>
+        <span></span>
+      </div>
+      ${rows}
+    </div>
+    <div class="entry-add-bar compact-add">
+      <select data-npc-add-select aria-label="Item para adicionar na entrada NPC">${entryItemOptionsHtml()}</select>
+      <button data-add-npc-item class="icon-button" type="button" title="Adicionar item da entrada" aria-label="Adicionar item da entrada">${iconSvg("plus")}</button>
     </div>
   `;
 
-  if (!records.length) {
-    elements.dgConfigEntryList.innerHTML += `<div class="empty-state">Entrada ainda não cadastrada para ${ENTRY_MODE_LABELS[mode]}.</div>`;
-    return;
-  }
+  return renderEntrySection(dungeon, "npc", ENTRY_MODE_LABELS.npc, alzHtml(entryCostForMode(dungeon, "npc")), body);
+}
 
-  records.forEach(({ line, index }) => {
-    if (isAlzEntry(line)) {
-      const row = document.createElement("div");
-      row.className = "table-row alz-row";
-      row.innerHTML = `
-        <div class="item-name">
-          <span class="swatch ${swatchClass(line.category || line.item)}"></span>
-          <span title="${line.item}">${line.item}</span>
-        </div>
-        <label class="entry-money-cell">
-          <span>Valor/DG</span>
-          <input data-entry-index="${index}" data-entry-field="alz" data-money-input="true" type="text" inputmode="numeric" autocomplete="off" value="${formatAlzNumber(line.qty)}" />
-        </label>
-        <strong class="entry-total" data-entry-total="${index}">${alzHtml(entryLineCostPerRun(line))}</strong>
-      `;
-      elements.dgConfigEntryList.appendChild(row);
-      return;
-    }
-
-    const qtyLocked = !canEditEntryQty(line);
-    const priceLocked = !canEditEntryPrice(line);
-    const row = document.createElement("div");
-    row.className = "table-row";
-    row.innerHTML = `
+function renderGemEntrySection(dungeon) {
+  const line = ensureGemEntryLine(dungeon);
+  const index = dungeon.entries.indexOf(line);
+  const total = entryLineCostPerRun(line);
+  const body = `
+    <div class="table-row gem-entry-row">
       <div class="item-name">
-        <span class="swatch ${swatchClass(line.category || line.item)}"></span>
-        <span title="${line.item}">${line.item}</span>
+        <span class="swatch ${swatchClass(line.category)}"></span>
+        <span>Gema Arcana</span>
       </div>
-      <input data-entry-index="${index}" data-entry-field="qty" type="number" min="0" step="0.01" value="${line.qty}" ${qtyLocked ? "disabled" : ""} />
-      <input data-entry-index="${index}" data-entry-field="price" data-money-input="true" type="text" inputmode="numeric" autocomplete="off" value="${formatAlzNumber(priceForLine(line))}" ${priceLocked ? "disabled" : ""} />
-      <strong class="entry-total" data-entry-total="${index}">${alzHtml(entryLineCostPerRun(line))}</strong>
-    `;
-    elements.dgConfigEntryList.appendChild(row);
-  });
+      <label class="compact-field">
+        <span>Qtd</span>
+        <input data-gem-entry-index="${index}" type="number" min="0" step="1" value="${line.qty}" />
+      </label>
+      <strong>${alzHtml(gemUnitValue())} / gema</strong>
+      <strong data-entry-total="${index}">${alzHtml(total)}</strong>
+    </div>
+  `;
+  const controls = `
+    <label class="mini-toggle" title="Ativar entrada por gemas">
+      <input data-gem-enabled type="checkbox" ${dungeon.gemEntryEnabled ? "checked" : ""} />
+      <span></span>
+    </label>
+  `;
+
+  return renderEntrySection(
+    dungeon,
+    "gems",
+    ENTRY_MODE_LABELS.gems,
+    dungeon.gemEntryEnabled ? alzHtml(total) : "Desativado",
+    body,
+    controls,
+  );
+}
+
+function renderCraftEntrySection(dungeon) {
+  const line = (dungeon.entries || []).find(isCraftRecipeEntry) || craftEntry(dungeon.id);
+  const recipe = craftRecipeForLine(line);
+  const body = `
+    <div class="table-row entry-config-row">
+      <div class="item-name">
+        <span class="swatch ${swatchClass("Craft")}"></span>
+        <span title="${craftRecipeDetails(recipe)}">Craft (Chloe)</span>
+        <small>${craftRecipeDetails(recipe)}</small>
+      </div>
+      <strong>${craftRecipeChance(recipe)}</strong>
+      <strong>${alzHtml(craftRecipeAttemptCost(recipe))} / tentativa</strong>
+      <strong>${alzHtml(craftRecipeExpectedCost(recipe))}</strong>
+      <span></span>
+    </div>
+  `;
+
+  return renderEntrySection(dungeon, "craft", ENTRY_MODE_LABELS.craft, alzHtml(craftRecipeExpectedCost(recipe)), body);
 }
 
 function renderBasicFarm() {
@@ -1469,34 +2188,10 @@ function renderCashback() {
     </div>
   `;
 
-  (dungeon.cashback || []).forEach((reward, index) => {
-    const row = document.createElement("div");
-    row.className = `cashback-row ${runs >= reward.runs ? "available" : ""}`;
-    row.innerHTML = `
-      <strong>${formatNumber(reward.runs)} DGs</strong>
-      <select data-cashback-index="${index}" aria-label="Cor da jóia do cashback de ${reward.runs} DGs">
-        ${JEWEL_ITEMS.map(
-          (item) => `<option value="${item}" ${normalizeJewelItem(reward.item) === item ? "selected" : ""}>${jewelColor(item)}</option>`,
-        ).join("")}
-      </select>
-      <strong data-cashback-value="${index}">${alzHtml(jewelValue(reward.item))}</strong>
-      <span data-cashback-status="${index}">${runs >= reward.runs ? "Liberado" : `${formatNumber(reward.runs - runs)} DGs restantes`}</span>
-    `;
-    elements.cashbackList.appendChild(row);
-  });
-}
-
-function renderCashback() {
-  const dungeon = currentDungeon();
-  const runs = effectiveRuns(dungeon);
-  elements.cashbackList.innerHTML = `
-    <div class="cashback-row header">
-      <span>Meta</span>
-      <span>Jóia</span>
-      <span>Valor</span>
-      <span>Status</span>
-    </div>
-  `;
+  if (!(dungeon.cashback || []).length) {
+    elements.cashbackList.innerHTML += `<div class="empty-state">Esta DG não tem cashback cadastrado.</div>`;
+    return;
+  }
 
   (dungeon.cashback || []).forEach((reward, index) => {
     const row = document.createElement("div");
@@ -1514,17 +2209,22 @@ function renderCashback() {
 function renderCashbackConfig() {
   const dungeon = currentDungeon();
   elements.dgConfigCashbackList.innerHTML = `
-    <div class="cashback-row header">
+    <div class="cashback-row cashback-config-row header">
       <span>Meta</span>
       <span>Jóia</span>
       <span>Valor</span>
+      <span>Qtd</span>
       <span></span>
     </div>
   `;
 
+  if (!(dungeon.cashback || []).length) {
+    elements.dgConfigCashbackList.innerHTML += `<div class="empty-state">Nenhum cashback cadastrado para esta DG.</div>`;
+  }
+
   (dungeon.cashback || []).forEach((reward, index) => {
     const row = document.createElement("div");
-    row.className = "cashback-row";
+    row.className = "cashback-row cashback-config-row";
     row.innerHTML = `
       <label class="compact-field">
         <span>DGs</span>
@@ -1537,9 +2237,19 @@ function renderCashbackConfig() {
       </select>
       <strong>${alzHtml(jewelValue(reward.item))}</strong>
       <span>1 jóia</span>
+      <button class="remove-button" data-remove-cashback-index="${index}" type="button" aria-label="Remover cashback de ${reward.runs} DGs">${iconSvg("x")}</button>
     `;
     elements.dgConfigCashbackList.appendChild(row);
   });
+
+  elements.dgConfigCashbackList.innerHTML += `
+    <div class="cashback-actions">
+      <button data-add-cashback class="cashback-add-button" type="button">
+        ${iconSvg("plus")}
+        <span>Adicionar cashback</span>
+      </button>
+    </div>
+  `;
 }
 
 function renderExtraDrops() {
@@ -1582,6 +2292,9 @@ function renderSettings() {
       [
         "Protetor PC (100 PC)",
         "Card Cash Ouro (1000 Cash)",
+        "Material Graduado",
+        DIMENSION_STONE_PACK_KEY,
+        CRAFT_ITEM_PC_COST_KEY,
         "Alz base do Protetor PC",
         "Quantidade de Núcleo de Aprimoramento (Altíssimo) no Protetor PC",
         "Quantidade de Núcleo de Aprimoramento (Alto) no Protetor PC",
@@ -1618,16 +2331,12 @@ function renderSettings() {
       <input data-dungeon-field="minutes" type="number" min="0" step="0.1" value="${dungeon.minutes}" />
     </div>
     <div class="dg-setting">
-      <strong>Runs base</strong>
-      <input data-dungeon-field="baseRuns" type="number" min="1" step="1" value="${dungeon.baseRuns || 30}" />
-    </div>
-    <div class="dg-setting toggle-setting">
-      <strong>Permite reset</strong>
-      <input data-dungeon-field="canReset" type="checkbox" ${dungeon.canReset ? "checked" : ""} />
+      <strong>Limite sem reset</strong>
+      <input data-dungeon-field="baseRuns" type="number" min="1" step="1" value="${baseRunLimit(dungeon)}" />
     </div>
     <div class="dg-setting">
-      <strong>Runs adicionais do reset</strong>
-      <input data-dungeon-field="resetRuns" type="number" min="0" step="1" value="${dungeon.resetRuns || 0}" />
+      <strong>Custo do reset (gemas)</strong>
+      <input data-dungeon-field="resetCostGems" type="number" min="0" step="1" value="${resetGemQty(dungeon)}" />
     </div>
   `;
 }
@@ -1635,7 +2344,6 @@ function renderSettings() {
 function renderDgConfig() {
   const dungeon = currentDungeon();
   elements.dgConfigTitle.textContent = dungeon.name;
-  elements.dgConfigEntryModeSelect.value = currentEntryMode(dungeon);
   elements.dgConfigPc.value = dungeon.pc;
   renderEntryConfig();
   renderCashbackConfig();
@@ -1658,13 +2366,14 @@ function renderRanking() {
 
   ranked.forEach((dungeon, index) => {
     const runs = rankingRuns(dungeon);
+    const resets = resetCount(dungeon, runs);
     const row = document.createElement("div");
     row.className = "rank-row";
     row.innerHTML = `
       <span class="rank-position">${index + 1}</span>
       <div>
         <strong title="${dungeon.name}">${dungeon.name}</strong>
-        <small>${runs} runs${dungeon.canReset ? " com reset" : ""}</small>
+        <small>${formatNumber(runs)} DGs${resets ? ` • ${formatNumber(resets)} reset` : ""}</small>
       </div>
       <strong>${alzHtml(entryCost(dungeon, runs))}</strong>
       <strong>${alzHtml(farmReturn(dungeon, runs))}</strong>
@@ -1678,7 +2387,10 @@ function renderRanking() {
 }
 
 function rankingRuns(dungeon) {
-  return (dungeon.baseRuns || 30) + (dungeon.canReset ? dungeon.resetRuns || 0 : 0);
+  if (app.ui.rankMode === "rush") {
+    return Math.max(baseRunLimit(dungeon), ...(dungeon.cashback || []).map((reward) => Number(reward.runs) || 0));
+  }
+  return baseRunLimit(dungeon);
 }
 
 function rankingValue(dungeon) {
@@ -1700,8 +2412,14 @@ function refreshNumbers() {
   const farm = farmReturn(dungeon, runs);
   const cashback = cashbackReturn(dungeon, runs);
   const pc = pcReturn(dungeon, runs);
+  const resets = resetCount(dungeon, runs);
+  const resetGems = resetGemQty(dungeon) * resets;
+  const resetTotal = resetCost(dungeon, runs);
 
   elements.totalRuns.textContent = formatNumber(runs);
+  elements.resetCostDisplay.innerHTML = resets
+    ? `${formatNumber(resets)} reset • ${formatNumber(resetGems)} gemas • ${alzHtml(resetTotal)}`
+    : "Sem reset";
   applyAlzDisplay(elements.metricEntryCost, entry);
   applyAlzDisplay(elements.metricBasic, farm);
   applyAlzDisplay(elements.metricCashback, cashback);
@@ -1747,12 +2465,10 @@ function refreshNumbers() {
 function render() {
   const dungeon = currentDungeon();
   elements.dungeonTitle.textContent = dungeon.name;
-  elements.runsInput.value = app.ui.runs || dungeon.baseRuns || 30;
-  elements.resetToggle.checked = app.ui.useReset;
-  elements.resetToggle.disabled = !dungeon.canReset;
+  elements.runsInput.value = app.ui.runs || baseRunLimit(dungeon);
   elements.sellPcToggle.checked = app.ui.sellPc;
-  elements.entryModeSelect.value = currentEntryMode(dungeon);
-  elements.dgConfigEntryModeSelect.value = currentEntryMode(dungeon);
+  ensureAvailableEntryMode(dungeon);
+  renderEntryModeOptions();
   renderView();
   renderDungeonButtons();
   renderEntries();
@@ -1769,6 +2485,8 @@ document.querySelectorAll(".nav-button").forEach((button) => {
   button.addEventListener("click", () => {
     document.querySelectorAll(".nav-button").forEach((navButton) => navButton.classList.remove("active"));
     button.classList.add("active");
+    app.ui.activeView = button.dataset.view;
+    saveData();
     renderView();
   });
 });
@@ -1793,13 +2511,6 @@ elements.runsInput.addEventListener("input", (event) => {
   renderRanking();
 });
 
-elements.resetToggle.addEventListener("change", (event) => {
-  app.ui.useReset = event.target.checked;
-  saveData();
-  renderCashback();
-  refreshNumbers();
-});
-
 elements.sellPcToggle.addEventListener("change", (event) => {
   app.ui.sellPc = event.target.checked;
   saveData();
@@ -1810,17 +2521,6 @@ elements.sellPcToggle.addEventListener("change", (event) => {
 elements.entryModeSelect.addEventListener("change", (event) => {
   app.ui.entryModes[currentDungeon().id] = event.target.value;
   saveData();
-  elements.dgConfigEntryModeSelect.value = event.target.value;
-  renderEntries();
-  renderEntryConfig();
-  refreshNumbers();
-  renderRanking();
-});
-
-elements.dgConfigEntryModeSelect.addEventListener("change", (event) => {
-  app.ui.entryModes[currentDungeon().id] = event.target.value;
-  saveData();
-  elements.entryModeSelect.value = event.target.value;
   renderEntries();
   renderEntryConfig();
   refreshNumbers();
@@ -1836,10 +2536,103 @@ elements.backToFarm.addEventListener("click", () => {
   setActiveView("dungeon");
 });
 
+elements.settingsMenuToggle.addEventListener("click", () => {
+  const shouldOpen = elements.settingsMenuOptions.hidden;
+  elements.settingsMenuOptions.hidden = !shouldOpen;
+  elements.settingsMenuToggle.setAttribute("aria-expanded", String(shouldOpen));
+});
+
+elements.settingsMenuOptions.querySelectorAll("button").forEach((button) => {
+  button.addEventListener("click", () => {
+    elements.settingsMenuOptions.hidden = true;
+    elements.settingsMenuToggle.setAttribute("aria-expanded", "false");
+    setActiveView(button.dataset.settingsTarget);
+    renderDgConfig();
+  });
+});
+
+document.addEventListener("click", (event) => {
+  const target = event.target.closest?.(
+    "[data-run-step], [data-entry-section-toggle], [data-add-npc-item], [data-remove-entry-index], [data-add-cashback], [data-remove-cashback-index]",
+  );
+  if (!target) return;
+
+  const dungeon = currentDungeon();
+
+  if (target.dataset.runStep !== undefined) {
+    app.ui.runs = Math.max(1, effectiveRuns(dungeon) + Number(target.dataset.runStep));
+    elements.runsInput.value = app.ui.runs;
+    saveData();
+    renderCashback();
+    refreshNumbers();
+    renderRanking();
+    return;
+  }
+
+  if (target.dataset.entrySectionToggle) {
+    const key = entryConfigKey(dungeon, target.dataset.entrySectionToggle);
+    app.ui.entryConfigOpen[key] = !app.ui.entryConfigOpen[key];
+    saveData();
+    renderEntryConfig();
+    return;
+  }
+
+  if (target.dataset.addNpcItem !== undefined) {
+    const select = target.closest(".entry-add-bar")?.querySelector("[data-npc-add-select]");
+    addEntryItemToMode("npc", select?.value, 1);
+    saveData();
+    render();
+    return;
+  }
+
+  if (target.dataset.removeEntryIndex !== undefined) {
+    removeEntryLine(Number(target.dataset.removeEntryIndex));
+    saveData();
+    render();
+    return;
+  }
+
+  if (target.dataset.addCashback !== undefined) {
+    const nextRuns = Math.max(0, ...(dungeon.cashback || []).map((reward) => Number(reward.runs) || 0)) || 15;
+    dungeon.cashback = dungeon.cashback || [];
+    dungeon.cashback.push({
+      runs: nextRuns === 15 && !dungeon.cashback.length ? 15 : nextRuns + 1,
+      item: JEWEL_ITEMS[0],
+      category: "Jóia",
+    });
+    dungeon.cashback = normalizeCashbackRewards(dungeon.cashback);
+    saveData();
+    renderCashback();
+    renderCashbackConfig();
+    refreshNumbers();
+    renderRanking();
+    return;
+  }
+
+  if (target.dataset.removeCashbackIndex !== undefined) {
+    dungeon.cashback.splice(Number(target.dataset.removeCashbackIndex), 1);
+    saveData();
+    renderCashback();
+    renderCashbackConfig();
+    refreshNumbers();
+    renderRanking();
+  }
+});
+
 document.addEventListener("change", (event) => {
   const target = event.target;
   if (target.dataset.moneyInput !== undefined) {
     formatMoneyInput(target);
+  }
+
+  if (target.dataset.gemEnabled !== undefined) {
+    const dungeon = currentDungeon();
+    dungeon.gemEntryEnabled = target.checked;
+    ensureGemEntryLine(dungeon);
+    ensureAvailableEntryMode(dungeon);
+    saveData();
+    render();
+    return;
   }
 
   if (target.dataset.cashbackConfigIndex === undefined) return;
@@ -1861,10 +2654,11 @@ elements.resetLocalData.addEventListener("click", () => {
   app.ui = {
     selectedDungeon: "lago",
     runs: 30,
-    useReset: false,
     sellPc: true,
     rankMode: "profit",
+    activeView: "dungeon",
     entryModes: {},
+    entryConfigOpen: {},
     countedDrops: {},
   };
   normalizeAppData();
@@ -1890,6 +2684,16 @@ document.addEventListener("input", (event) => {
     renderEntries();
     refreshNumbers();
     renderRanking();
+    return;
+  }
+
+  if (target.dataset.gemEntryIndex !== undefined) {
+    const line = dungeon.entries[Number(target.dataset.gemEntryIndex)];
+    if (line && inferEntryMode(line) === "gems") {
+      line.qty = numberValue(target.value);
+      saveData();
+      render();
+    }
     return;
   }
 
@@ -1939,13 +2743,12 @@ document.addEventListener("input", (event) => {
 
   if (target.dataset.dungeonField) {
     const field = target.dataset.dungeonField;
-    if (field === "canReset") {
-      dungeon.canReset = target.checked;
-      app.ui.useReset = app.ui.useReset && dungeon.canReset;
-    } else {
-      dungeon[field] = numberValue(target.value);
-      if (field === "baseRuns") app.ui.runs = dungeon.baseRuns;
+    dungeon[field] = numberValue(target.value);
+    if (field === "baseRuns") {
+      dungeon.baseRuns = baseRunLimit(dungeon);
+      app.ui.runs = dungeon.baseRuns;
     }
+    if (field === "resetCostGems") dungeon.resetCostGems = resetGemQty(dungeon);
     saveData();
     render();
   }

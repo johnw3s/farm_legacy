@@ -18,16 +18,46 @@
         </div>
 
         <nav class="main-nav" aria-label="Navegação principal">
-          <button class="nav-button active" data-view="dungeon">DG</button>
-          <button class="nav-button" data-view="ranking">Ranking</button>
-          <button class="nav-button" data-view="dg-settings">Configuração DGs</button>
-          <button class="nav-button" data-view="settings">Configuração</button>
+          <button class="nav-button active" data-view="dungeon">
+            <svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M8 3h8"></path>
+              <path d="M9 3v4l-4 7a5 5 0 0 0 4.3 7h5.4a5 5 0 0 0 4.3-7l-4-7V3"></path>
+              <path d="M7.5 14h9"></path>
+            </svg>
+            <span>Registrar Farm</span>
+          </button>
+          <button class="nav-button" data-view="ranking">
+            <svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 19V5"></path>
+              <path d="M4 19h17"></path>
+              <path d="M8 16v-5"></path>
+              <path d="M13 16V8"></path>
+              <path d="M18 16v-3"></path>
+            </svg>
+            <span>Ranking</span>
+          </button>
         </nav>
 
         <div class="dungeon-picker">
           <label for="dungeon-search">Dungeons</label>
           <input id="dungeon-search" type="search" autocomplete="off" placeholder="Buscar DG" />
           <div id="dungeon-buttons" class="dungeon-buttons" aria-live="polite"></div>
+        </div>
+
+        <div class="sidebar-spacer"></div>
+
+        <div class="settings-menu">
+          <button id="settings-menu-toggle" class="settings-menu-button" type="button" aria-expanded="false">
+            <svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"></path>
+              <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 9 19.37a1.7 1.7 0 0 0-1.88.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.56-1.03H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.88l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1.03-1.56V3a2 2 0 1 1 4 0v.09A1.7 1.7 0 0 0 15 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9c.12.46.51.8.97.97H21a2 2 0 1 1 0 4h-.09A1.7 1.7 0 0 0 19.4 15Z"></path>
+            </svg>
+            <span>Configurações</span>
+          </button>
+          <div id="settings-menu-options" class="settings-menu-options" hidden>
+            <button type="button" data-settings-target="settings">Configurações Gerais</button>
+            <button type="button" data-settings-target="dg-settings">Configurações Dungeons</button>
+          </div>
         </div>
       </aside>
 
@@ -41,12 +71,21 @@
 
             <div class="run-bar" aria-label="Controle de runs">
               <label>
-                Runs base
-                <input id="runs-input" type="number" min="1" max="120" value="30" />
-              </label>
-              <label class="toggle-control">
-                <input id="reset-toggle" type="checkbox" />
-                <span>Reset</span>
+                DGs
+                <div class="number-stepper">
+                  <button data-run-step="-1" type="button" aria-label="Diminuir DGs">
+                    <svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M5 12h14"></path>
+                    </svg>
+                  </button>
+                  <input id="runs-input" type="number" min="1" max="120" value="30" />
+                  <button data-run-step="1" type="button" aria-label="Aumentar DGs">
+                    <svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M12 5v14"></path>
+                      <path d="M5 12h14"></path>
+                    </svg>
+                  </button>
+                </div>
               </label>
               <label class="toggle-control">
                 <input id="sell-pc-toggle" type="checkbox" checked />
@@ -55,6 +94,7 @@
               <div class="total-runs">
                 <span>Total</span>
                 <strong id="total-runs">30</strong>
+                <small id="reset-cost-display">Sem reset</small>
               </div>
             </div>
           </header>
@@ -202,30 +242,23 @@
           <header class="page-head">
             <div class="title-block">
               <span>Configuração por DG</span>
-              <h1 id="dg-config-title">Configuração DGs</h1>
+              <h1 id="dg-config-title">Configurações Dungeons</h1>
             </div>
             <button id="back-to-farm" class="ghost-button" type="button">Voltar ao Farm</button>
           </header>
 
           <section class="dg-config-layout">
-            <section class="panel">
+            <section class="panel entry-config-panel">
               <div class="panel-head">
                 <div>
                   <span>Entrada</span>
                   <h2>Custo fixo da DG</h2>
                 </div>
-                <label class="entry-mode-control">
-                  <select id="dg-config-entry-mode-select" aria-label="Tipo de entrada para configurar">
-                    <option value="gems">Gemas Arcanas</option>
-                    <option value="craft">Craft (Chloe)</option>
-                    <option value="npc">NPC (Yul)</option>
-                  </select>
-                </label>
               </div>
-              <div id="dg-config-entry-list" class="data-table"></div>
+              <div id="dg-config-entry-sections" class="entry-config-sections"></div>
             </section>
 
-            <section class="panel">
+            <section class="panel dg-pc-config-panel">
               <div class="panel-head">
                 <div>
                   <span>Pontos de Calabouço</span>
@@ -240,7 +273,7 @@
               </div>
             </section>
 
-            <section class="panel">
+            <section class="panel dg-cashback-config-panel">
               <div class="panel-head">
                 <div>
                   <span>Recompensas</span>
@@ -256,7 +289,7 @@
           <header class="page-head">
             <div class="title-block">
               <span>Base do sistema</span>
-              <h1>Configuração Geral</h1>
+              <h1>Configurações Gerais</h1>
             </div>
             <button id="reset-local-data" class="ghost-button" type="button">Restaurar padrão</button>
           </header>
@@ -303,7 +336,7 @@
               <div class="panel-head">
                 <div>
                   <span>Dungeon atual</span>
-                  <h2>Tempo e reset</h2>
+                  <h2>Tempo e limites</h2>
                 </div>
               </div>
               <div id="dungeon-settings" class="settings-list"></div>

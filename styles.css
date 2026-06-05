@@ -141,9 +141,18 @@ select {
 }
 
 .nav-button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   width: 100%;
   padding: 10px 12px;
   text-align: left;
+}
+
+.nav-button .button-icon {
+  width: 17px;
+  height: 17px;
+  flex: 0 0 auto;
 }
 
 .nav-button:hover,
@@ -197,6 +206,18 @@ select {
   padding: 9px 11px;
 }
 
+input[type="number"] {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  margin: 0;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
 input:focus,
 select:focus {
   border-color: var(--accent) !important;
@@ -224,6 +245,53 @@ select:focus {
   min-height: 0;
   overflow: auto;
   padding-right: 3px;
+}
+
+.sidebar-spacer {
+  flex: 1 1 auto;
+  min-height: 10px;
+}
+
+.settings-menu {
+  position: relative;
+  display: grid;
+  gap: 8px;
+}
+
+.settings-menu-button,
+.settings-menu-options button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 40px;
+  padding: 10px 12px;
+  color: var(--muted);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  text-align: left;
+  font-weight: 800;
+}
+
+.settings-menu-button:hover,
+.settings-menu-options button:hover {
+  color: var(--text);
+  border-color: var(--line-strong);
+}
+
+.settings-menu-options {
+  display: grid;
+  gap: 6px;
+}
+
+.settings-menu-options[hidden] {
+  display: none;
+}
+
+.settings-menu-options button {
+  min-height: 36px;
+  padding-left: 39px;
+  background: rgba(16, 11, 24, 0.84);
 }
 
 .dungeon-button {
@@ -354,6 +422,58 @@ h3 {
   padding: 8px 10px;
 }
 
+.number-stepper {
+  display: grid;
+  grid-template-columns: 34px 68px 34px;
+  align-items: center;
+  gap: 4px;
+  min-height: 38px;
+  padding: 3px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+
+.number-stepper input[type="number"] {
+  width: 68px;
+  min-height: 32px;
+  padding: 0;
+  color: var(--text);
+  text-align: center;
+  background: transparent;
+  border: 0;
+  font-weight: 900;
+}
+
+.number-stepper input[type="number"]:focus {
+  box-shadow: none;
+}
+
+.number-stepper button {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 32px;
+  color: var(--accent);
+  background: rgba(218, 201, 96, 0.1);
+  border: 1px solid rgba(218, 201, 96, 0.18);
+  border-radius: 10px;
+  transition:
+    transform 140ms ease,
+    background 140ms ease,
+    border-color 140ms ease;
+}
+
+.number-stepper button:hover {
+  color: var(--accent-ink);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.number-stepper button:active {
+  transform: translateY(1px);
+}
+
 .toggle-control {
   display: flex !important;
   grid-template-columns: none !important;
@@ -403,6 +523,21 @@ h3 {
   color: var(--text);
   font-size: 19px;
   line-height: 1.15;
+}
+
+.total-runs small {
+  display: block;
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.total-runs small .alz-value {
+  display: inline;
+  margin: 0;
+  font-size: inherit;
 }
 
 .metric-grid {
@@ -526,6 +661,134 @@ h3 {
   gap: 14px;
 }
 
+.dg-config-layout {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: start;
+}
+
+.entry-config-panel {
+  grid-column: 1 / -1;
+}
+
+.entry-config-sections {
+  display: grid;
+  gap: 10px;
+}
+
+.entry-accordion {
+  overflow: hidden;
+  background: rgba(16, 11, 24, 0.64);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: var(--radius-md);
+}
+
+.entry-accordion.open {
+  border-color: rgba(218, 201, 96, 0.24);
+}
+
+.entry-accordion-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 10px;
+}
+
+.entry-accordion-head > button {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-width: 0;
+  color: var(--text);
+  background: transparent;
+  border: 0;
+  text-align: left;
+  font-weight: 900;
+}
+
+.entry-accordion-head > button small {
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.entry-accordion-body {
+  display: grid;
+  gap: 10px;
+  padding: 0 10px 10px;
+}
+
+.entry-accordion-body[hidden] {
+  display: none;
+}
+
+.entry-add-bar {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) 110px 38px;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.entry-add-bar.compact-add {
+  grid-template-columns: minmax(180px, 1fr) 38px;
+  margin: 0;
+}
+
+.entry-add-bar select,
+.entry-add-bar input {
+  min-height: 38px;
+  padding: 8px 10px;
+  color: var(--text);
+  background: var(--input);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  outline: none;
+}
+
+.mini-toggle {
+  position: relative;
+  width: 42px;
+  height: 24px;
+  flex: 0 0 auto;
+}
+
+.mini-toggle input {
+  position: absolute;
+  opacity: 0;
+}
+
+.mini-toggle span {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.mini-toggle span::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+  background: var(--muted);
+  border-radius: 50%;
+  transition: 0.18s ease;
+}
+
+.mini-toggle input:checked + span {
+  background: rgba(218, 201, 96, 0.22);
+  border-color: rgba(218, 201, 96, 0.42);
+}
+
+.mini-toggle input:checked + span::after {
+  left: 21px;
+  background: var(--accent);
+}
+
 .info-box {
   min-width: 0;
   padding: 12px;
@@ -619,8 +882,12 @@ h3 {
   grid-template-columns: minmax(190px, 1fr) 92px 124px 126px 34px;
 }
 
+.table-row.entry-config-row {
+  grid-template-columns: minmax(190px, 1fr) 120px 124px 126px 34px;
+}
+
 .table-row.alz-row {
-  grid-template-columns: minmax(190px, 1fr) minmax(224px, 234px) 126px;
+  grid-template-columns: minmax(190px, 1fr) minmax(224px, 234px) 124px 126px 34px;
 }
 
 .entry-money-cell {
@@ -660,6 +927,7 @@ h3 {
   align-items: center;
   gap: 9px;
   min-width: 0;
+  flex-wrap: wrap;
   font-weight: 800;
 }
 
@@ -670,6 +938,18 @@ h3 {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.item-name small {
+  flex-basis: 100%;
+  min-width: 0;
+  padding-left: 21px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .swatch {
@@ -737,6 +1017,10 @@ h3 {
   border-radius: var(--radius-md);
 }
 
+.cashback-row.cashback-config-row {
+  grid-template-columns: 92px minmax(120px, 1fr) 128px 80px 34px;
+}
+
 .cashback-row.available {
   border-color: rgba(218, 201, 96, 0.28);
   background: rgba(218, 201, 96, 0.08);
@@ -790,6 +1074,37 @@ h3 {
   min-width: 0;
 }
 
+.cashback-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.cashback-add-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 0 13px;
+  color: var(--accent-ink);
+  background: var(--accent);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: var(--radius-sm);
+  font-weight: 900;
+  transition:
+    transform 140ms ease,
+    filter 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.cashback-add-button:hover {
+  filter: brightness(1.08);
+  box-shadow: 0 10px 24px rgba(218, 201, 96, 0.16);
+}
+
+.cashback-add-button:active {
+  transform: translateY(1px);
+}
+
 .drop-list,
 .counted-list {
   display: grid;
@@ -818,6 +1133,11 @@ h3 {
   place-items: center;
   border: 1px solid var(--line-strong);
   font-weight: 900;
+  transition:
+    transform 140ms ease,
+    filter 140ms ease,
+    background 140ms ease,
+    border-color 140ms ease;
 }
 
 .button-icon {
@@ -849,6 +1169,12 @@ h3 {
   filter: brightness(1.08);
 }
 
+.icon-button:active,
+.quick-add button:active,
+.remove-button:active {
+  transform: translateY(1px);
+}
+
 .quick-add {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 118px 38px;
@@ -866,6 +1192,12 @@ h3 {
   color: var(--danger);
   background: rgba(255, 123, 154, 0.11);
   border-color: rgba(255, 123, 154, 0.32);
+}
+
+.remove-button:hover {
+  color: #ffffff;
+  background: rgba(255, 123, 154, 0.2);
+  border-color: rgba(255, 123, 154, 0.48);
 }
 
 .empty-state {
@@ -1024,16 +1356,19 @@ h3 {
 
   .table-row,
   .cashback-row,
+  .cashback-row.cashback-config-row,
   .counted-row,
   .setting-row,
   .dg-setting,
   .rank-row,
+  .entry-add-bar,
   .quick-add {
     grid-template-columns: 1fr;
   }
 
   .table-row.alz-row,
   .table-row.farm-row,
+  .table-row.entry-config-row,
   .compact-field,
   .entry-money-cell {
     grid-template-columns: 1fr;
@@ -1049,9 +1384,29 @@ h3 {
   .pc-grid input,
   .settings-list input,
   .data-table input,
+  .entry-add-bar select,
+  .entry-add-bar input,
   .compact-field input,
   .cashback-row select,
+  .number-stepper,
   .entry-mode-control {
+    width: 100%;
+  }
+
+  .number-stepper {
+    grid-template-columns: 38px minmax(0, 1fr) 38px;
+  }
+
+  .number-stepper input[type="number"] {
+    width: 100%;
+  }
+
+  .cashback-actions {
+    justify-content: stretch;
+  }
+
+  .cashback-add-button {
+    justify-content: center;
     width: 100%;
   }
 }
